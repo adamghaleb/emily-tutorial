@@ -161,34 +161,6 @@ export const quizCards: QuizCard[] = [
     category: "datefix",
   },
   {
-    id: 12,
-    question: "Why were the DateFix images regenerated in landscape format?",
-    answer:
-      "The landscape version became the base image for extracting all individual assets for the web layout.",
-    term: "Landscape Regen",
-    shortDef: "Base image for extracting individual web assets",
-    distractors: [
-      "The portrait images had low resolution artifacts that made them unsuitable for printing",
-      "Landscape images load faster on mobile devices because they require less vertical scrolling",
-      "The client specifically requested horizontal compositions for their social media marketing",
-    ],
-    category: "datefix",
-  },
-  {
-    id: 13,
-    question: "How many total assets were extracted from the DateFix image?",
-    answer:
-      "8 total — 4 packets (Original, Ginger, Turmeric, Cinnamon) plus 4 matching ingredient images.",
-    term: "8 Assets",
-    shortDef: "4 packets + 4 ingredients extracted from base image",
-    distractors: [
-      "12 total — 4 packets, 4 ingredients, and 4 background textures for each flavor variation",
-      "6 total — 4 packets and 2 shared ingredient images that were reused across all flavors",
-      "16 total — 4 packets, 4 ingredients, 4 shadows, and 4 color overlay layers for effects",
-    ],
-    category: "datefix",
-  },
-  {
     id: 14,
     question: "What is the 'Blend If' technique used for in the DateFix build?",
     answer:
@@ -199,20 +171,6 @@ export const quizCards: QuizCard[] = [
       "A CSS filter property that blends two overlapping elements together with adjustable opacity",
       "A color grading tool that shifts the hue and saturation of an image to match brand colors",
       "A Photoshop layer style that creates a smooth gradient transition between two separate layers",
-    ],
-    category: "datefix",
-  },
-  {
-    id: 15,
-    question: "Why did every DateFix asset need the exact same canvas size?",
-    answer:
-      "Because each image is positioned relative to a common coordinate system — mismatched sizes would misalign content.",
-    term: "Same Canvas Size",
-    shortDef: "Ensures proper alignment in the web coordinate system",
-    distractors: [
-      "Because the hosting platform Vercel has strict file size limits and rejects inconsistent image dimensions",
-      "Because React components can only render images that share identical width and height properties",
-      "Because the AI image generator only produces consistent quality when given uniform canvas inputs",
     ],
     category: "datefix",
   },
@@ -231,48 +189,6 @@ export const quizCards: QuizCard[] = [
     category: "datefix",
   },
   {
-    id: 17,
-    question: "Which ingredients needed the overlap layer trick?",
-    answer:
-      "Dates and cinnamon — their ingredients partially overlap the packet in the original image composition.",
-    term: "Dates & Cinnamon",
-    shortDef: "These ingredients overlap their packets in the image",
-    distractors: [
-      "Ginger and turmeric — their bright colors clashed with the packet design and needed separation",
-      "All four ingredients — every flavor required the split technique for consistent visual quality",
-      "Only the original flavor — the plain dates were the only ingredient touching the packet edge",
-    ],
-    category: "datefix",
-  },
-  {
-    id: 18,
-    question: "What are the 4 stacked layers for each DateFix flavor slot?",
-    answer:
-      "Color overlay (glow), bottom ingredient, the packet itself, and the top ingredient overlap layer.",
-    term: "4 Layers",
-    shortDef: "Color overlay → bottom ingredient → packet → top ingredient",
-    distractors: [
-      "Background gradient, packet shadow, the packet image, and a text label with the flavor name",
-      "Ingredient photo, brand color border, the packet PNG, and an interactive hover tooltip overlay",
-      "Base texture layer, color-tinted packet copy, ingredient cutout, and a transparent glass effect",
-    ],
-    category: "datefix",
-  },
-  {
-    id: 19,
-    question: "What was the reference image overlay technique used for?",
-    answer:
-      "The original AI image at 30% opacity served as 'tracing paper' to position each layer precisely.",
-    term: "Reference Overlay",
-    shortDef: "Original image at 30% opacity used as alignment guide",
-    distractors: [
-      "A grid of pixel-perfect guidelines that snapped each element into exact column-based positions",
-      "A Figma design mockup imported as a background layer to compare against the live website",
-      "A browser extension that highlights layout differences between the design file and live code",
-    ],
-    category: "datefix",
-  },
-  {
     id: 20,
     question: "What did Adam's custom debug menu include?",
     answer:
@@ -287,44 +203,16 @@ export const quizCards: QuizCard[] = [
     category: "datefix",
   },
   {
-    id: 21,
-    question: "What key do you press to open the DateFix debug menu?",
-    answer:
-      "The equals key (=) — a quick keyboard shortcut to toggle the custom debug panel on and off.",
-    term: "= Key",
-    shortDef: "Keyboard shortcut to toggle the debug menu",
-    distractors: [
-      "The D key — a standard convention for debug menus used across most web development projects",
-      "Ctrl+Shift+I — the same shortcut that opens the built-in browser developer tools panel",
-      "The F12 key — a universal keyboard shortcut for accessing developer and debugging utilities",
-    ],
-    category: "datefix",
-  },
-  {
     id: 22,
     question: "What was the core iteration workflow in the DateFix build?",
     answer:
       "Visually tweak with debug tools → copy the config values → paste them back into the source code.",
-    term: "Tweak → Copy → Paste",
+    term: "Debug Iteration",
     shortDef: "Visual tweaking → copy config → paste into code",
     distractors: [
       "Write CSS values by hand → refresh the browser → compare against the Figma design mockup",
       "Export assets from Photoshop → import into React → adjust component props until they match",
       "Run automated layout tests → review the pixel diff report → fix any failing alignment checks",
-    ],
-    category: "datefix",
-  },
-  {
-    id: 23,
-    question: "What interactive features were added to the DateFix demo?",
-    answer:
-      "Hover rise effect on packets, brand-colored glow, clickable flavor popups, and reactive drop shadows.",
-    term: "Interactivity",
-    shortDef: "Hover rise, color glow, flavor popups, drop shadows",
-    distractors: [
-      "Drag-and-drop packet sorting, animated cart system, checkout flow, and purchase confirmation",
-      "Scrolling parallax background, sticky navigation header, animated counters, and a contact form",
-      "Video autoplay on hover, audio narration for each flavor, swipe gestures, and a sharing modal",
     ],
     category: "datefix",
   },
