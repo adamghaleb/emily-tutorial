@@ -74,11 +74,11 @@ export const tutorialSteps: TutorialStep[] = [
     links: [
       {
         url: "https://drive.google.com/drive/folders/1EheaO8m1LEVwBMuhmgYMeFhHjUhMBB8V?usp=sharing",
-        label: "Design Files (Folder 1)",
+        label: ".PSDs",
       },
       {
         url: "https://drive.google.com/drive/folders/1qPPWLOLd6l9PSk5Y2eCl4lX0U7gc-uSJ?usp=sharing",
-        label: "Design Files (Folder 2)",
+        label: "Assets",
       },
     ],
   },

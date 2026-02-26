@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { playClick } from "@/lib/sounds";
 import { TutorialTab } from "@/components/tutorial/tutorial-tab";
 import { ChatTab } from "@/components/chat/chat-tab";
-import { QuizTab } from "@/components/quiz/quiz-tab";
+import { StudyTab } from "@/components/study/study-tab";
 
 type Tab = "tutorial" | "chat" | "quiz";
 
@@ -39,8 +39,8 @@ const tabs: {
   },
   {
     id: "quiz",
-    label: "Quiz",
-    emoji: "🧠",
+    label: "Study",
+    emoji: "🎮",
     icon: <Brain className="h-4 w-4" />,
     color: "text-datefix-gold",
   },
@@ -123,7 +123,7 @@ export function AppShell({ onBack }: AppShellProps) {
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
         {activeTab === "tutorial" && <TutorialTab />}
         {activeTab === "chat" && <ChatTab />}
-        {activeTab === "quiz" && <QuizTab />}
+        {activeTab === "quiz" && <StudyTab />}
       </main>
     </div>
   );

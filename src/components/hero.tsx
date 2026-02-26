@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { playStart } from "@/lib/sounds";
 import { Sparkles, Heart, Rocket, Star, Zap, PartyPopper } from "lucide-react";
@@ -9,21 +10,48 @@ interface HeroProps {
 }
 
 export function Hero({ onStart }: HeroProps) {
+  const blobRef = useRef<HTMLDivElement>(null);
+  const iconRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const { clientX, clientY } = e;
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    const dx = (clientX - cx) / cx; // -1 to 1
+    const dy = (clientY - cy) / cy;
+
+    if (blobRef.current) {
+      blobRef.current.style.transform = `translate(${dx * 20}px, ${dy * 15}px)`;
+    }
+    if (iconRef.current) {
+      iconRef.current.style.transform = `translate(${dx * -12}px, ${dy * -10}px)`;
+    }
+  }, []);
+
   return (
-    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-6">
+    <div
+      onMouseMove={handleMouseMove}
+      className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-6"
+    >
       {/* Rich layered background */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#1d1644] via-[#120e2e] to-[#0c0a17]" />
 
-      {/* Animated aurora blobs */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* Animated aurora blobs — follow cursor */}
+      <div
+        ref={blobRef}
+        className="pointer-events-none absolute inset-0 overflow-hidden transition-transform duration-700 ease-out"
+      >
         <div className="animate-float-slow absolute -left-20 top-[10%] h-[500px] w-[500px] rounded-full bg-datefix-blue/15 blur-[100px]" />
         <div className="animate-float-delayed absolute -right-16 top-[30%] h-[400px] w-[400px] rounded-full bg-datefix-pink/15 blur-[100px]" />
         <div className="animate-float absolute bottom-[10%] left-[20%] h-[350px] w-[350px] rounded-full bg-datefix-gold/10 blur-[80px]" />
         <div className="animate-float-delayed absolute bottom-[30%] right-[10%] h-[250px] w-[250px] rounded-full bg-datefix-green/8 blur-[60px]" />
       </div>
 
-      {/* Floating decorative icons */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* Floating decorative icons — counter-follow cursor */}
+      <div
+        ref={iconRef}
+        className="pointer-events-none absolute inset-0 overflow-hidden transition-transform duration-500 ease-out"
+      >
         <Star className="animate-sparkle absolute left-[12%] top-[18%] h-4 w-4 text-datefix-gold/40" />
         <Star className="animate-sparkle absolute right-[18%] top-[22%] h-3 w-3 text-datefix-pink/40 [animation-delay:0.5s]" />
         <Star className="animate-sparkle absolute left-[25%] top-[70%] h-3.5 w-3.5 text-datefix-blue/40 [animation-delay:1s]" />
