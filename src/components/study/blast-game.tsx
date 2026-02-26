@@ -30,8 +30,16 @@ interface Asteroid {
   dx: number;
   dy: number;
   color: string;
-  size: number;
+  radius: number;
   status: "idle" | "correct" | "wrong" | "fading";
+}
+
+interface Bullet {
+  id: string;
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
 }
 
 interface LevelConfig {
@@ -39,7 +47,7 @@ interface LevelConfig {
   questions: number;
   asteroidCount: number;
   speed: number;
-  timePerQuestion: number; // seconds
+  timePerQuestion: number;
   label: string;
 }
 
@@ -52,7 +60,7 @@ const LEVELS: LevelConfig[] = [
     level: 1,
     questions: 5,
     asteroidCount: 4,
-    speed: 0.4,
+    speed: 0.3,
     timePerQuestion: 15,
     label: "Cadet",
   },
@@ -60,7 +68,7 @@ const LEVELS: LevelConfig[] = [
     level: 2,
     questions: 5,
     asteroidCount: 5,
-    speed: 0.6,
+    speed: 0.45,
     timePerQuestion: 12,
     label: "Pilot",
   },
@@ -68,29 +76,25 @@ const LEVELS: LevelConfig[] = [
     level: 3,
     questions: 5,
     asteroidCount: 6,
-    speed: 0.85,
+    speed: 0.6,
     timePerQuestion: 10,
     label: "Commander",
   },
 ];
 
-const ASTEROID_COLORS = [
-  "bg-datefix-blue",
-  "bg-datefix-pink",
-  "bg-datefix-gold",
-  "bg-datefix-green",
-  "bg-datefix-blue/80",
-  "bg-datefix-pink/80",
+const ASTEROID_RAW_COLORS = [
+  "#94b8f2", // datefix-blue
+  "#d684cc", // datefix-pink
+  "#e0a958", // datefix-gold
+  "#a0c75d", // datefix-green
+  "#b0c8f5", // lighter blue
+  "#e0a0d8", // lighter pink
 ];
 
-const ASTEROID_BORDER_COLORS = [
-  "border-datefix-blue/60",
-  "border-datefix-pink/60",
-  "border-datefix-gold/60",
-  "border-datefix-green/60",
-  "border-datefix-blue/40",
-  "border-datefix-pink/40",
-];
+const BULLET_SPEED = 8;
+const BULLET_RADIUS = 5;
+const TURRET_HEIGHT = 40;
+const TURRET_WIDTH = 8;
 
 const POINTS_CORRECT = 5;
 const POINTS_WRONG = -2;
@@ -108,13 +112,11 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-/** Build the full question queue for all 3 levels */
 function buildQuestionQueue() {
   const shuffled = shuffle([...quizCards]);
   return shuffled.slice(0, 15);
 }
 
-/** Generate asteroids for a single question — correct answer + distractors as SHORT text */
 function generateAsteroids(
   correctCard: (typeof quizCards)[number],
   count: number,
@@ -122,7 +124,6 @@ function generateAsteroids(
   areaH: number,
   speed: number,
 ): Asteroid[] {
-  // Correct answer = the card's shortDef; distractors from the card
   const distractorTexts = shuffle([...correctCard.distractors]).slice(
     0,
     count - 1,
@@ -137,13 +138,16 @@ function generateAsteroids(
     })),
   ]);
 
-  const padding = 60;
+  const padding = 80;
   const usableW = Math.max(areaW - padding * 2, 200);
-  const usableH = Math.max(areaH - padding * 2, 200);
+  // Keep asteroids in top 75% of area (leave room for turret)
+  const usableH = Math.max((areaH - padding * 2) * 0.75, 150);
 
   return allOptions.map((item, i) => {
     const angle = Math.random() * Math.PI * 2;
     const baseSpeed = speed * (0.6 + Math.random() * 0.8);
+    // Size based on text length to avoid truncation
+    const radius = Math.max(55, Math.min(80, 45 + item.text.length * 0.6));
 
     return {
       id: `asteroid-${item.cardId}-${i}-${Date.now()}`,
@@ -154,18 +158,32 @@ function generateAsteroids(
       y: padding + Math.random() * usableH,
       dx: Math.cos(angle) * baseSpeed,
       dy: Math.sin(angle) * baseSpeed,
-      color: ASTEROID_COLORS[i % ASTEROID_COLORS.length],
-      size: 100 + Math.random() * 20,
+      color: ASTEROID_RAW_COLORS[i % ASTEROID_RAW_COLORS.length],
+      radius,
       status: "idle" as const,
     };
   });
 }
 
-/** Get streak multiplier */
 function getMultiplier(streak: number): number {
   if (streak >= 5) return 2;
   if (streak >= 3) return 1.5;
   return 1;
+}
+
+/** Check circle-circle overlap */
+function circlesOverlap(
+  x1: number,
+  y1: number,
+  r1: number,
+  x2: number,
+  y2: number,
+  r2: number,
+): boolean {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  return dist < r1 + r2;
 }
 
 /* ------------------------------------------------------------------ */
@@ -204,12 +222,18 @@ export function BlastGame({ onBack }: BlastGameProps) {
 
   const [questions] = useState(() => buildQuestionQueue());
   const [asteroids, setAsteroids] = useState<Asteroid[]>([]);
+  const [bullets, setBullets] = useState<Bullet[]>([]);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [turretAngle, setTurretAngle] = useState(-Math.PI / 2); // pointing up
 
   const areaRef = useRef<HTMLDivElement>(null);
   const animFrameRef = useRef<number>(0);
   const lockedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mouseRef = useRef({ x: 0, y: 0 });
+  const bulletIdRef = useRef(0);
+  const asteroidsRef = useRef<Asteroid[]>([]);
+  const handleAsteroidHitRef = useRef<(id: string) => void>(() => {});
 
   const stars = useStars(80);
 
@@ -219,6 +243,36 @@ export function BlastGame({ onBack }: BlastGameProps) {
   const currentQuestion = questions[globalQuestionIdx];
   const multiplier = getMultiplier(streak);
   const totalQuestions = 15;
+
+  // Keep ref in sync for bullet collision checks
+  useEffect(() => {
+    asteroidsRef.current = asteroids;
+  }, [asteroids]);
+
+  /* ---- turret position (bottom center of area) ---- */
+  const getTurretPos = useCallback(() => {
+    const area = areaRef.current;
+    if (!area) return { x: 0, y: 0 };
+    const rect = area.getBoundingClientRect();
+    return { x: rect.width / 2, y: rect.height - 20 };
+  }, []);
+
+  /* ---- mouse tracking for turret aim ---- */
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const area = areaRef.current;
+      if (!area) return;
+      const rect = area.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      mouseRef.current = { x: mx, y: my };
+
+      const turret = getTurretPos();
+      const angle = Math.atan2(my - turret.y, mx - turret.x);
+      setTurretAngle(angle);
+    },
+    [getTurretPos],
+  );
 
   /* ---- spawn asteroids for current question ---- */
   const spawnAsteroids = useCallback(() => {
@@ -235,6 +289,7 @@ export function BlastGame({ onBack }: BlastGameProps) {
       currentLevel.speed,
     );
     setAsteroids(newAsteroids);
+    setBullets([]);
   }, [currentQuestion, currentLevel]);
 
   /* ---- start game ---- */
@@ -248,22 +303,20 @@ export function BlastGame({ onBack }: BlastGameProps) {
     setTotalCorrect(0);
     setTotalAnswered(0);
     setShowConfetti(false);
+    setBullets([]);
     lockedRef.current = false;
   }, []);
 
   /* ---- spawn on question change + start countdown ---- */
   useEffect(() => {
     if (gamePhase === "playing" && currentQuestion) {
-      // Small delay so the DOM has rendered
       const t = setTimeout(() => spawnAsteroids(), 100);
 
-      // Reset countdown timer
       setTimeLeft(currentLevel.timePerQuestion);
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            // Time's up — skip this question
             if (timerRef.current) clearInterval(timerRef.current);
             return 0;
           }
@@ -284,10 +337,10 @@ export function BlastGame({ onBack }: BlastGameProps) {
     currentLevel,
   ]);
 
-  /* ---- handle timeout (time ran out) — uses advanceRef to avoid TDZ ---- */
+  /* ---- handle timeout ---- */
   const advanceRef = useRef<() => void>(() => {});
 
-  /* ---- animation loop: move asteroids ---- */
+  /* ---- animation loop: asteroids + bullets + collisions ---- */
   useEffect(() => {
     if (gamePhase !== "playing") return;
 
@@ -302,8 +355,9 @@ export function BlastGame({ onBack }: BlastGameProps) {
       const w = rect.width;
       const h = rect.height;
 
-      setAsteroids((prev) =>
-        prev.map((a) => {
+      // Move asteroids with wall bouncing + asteroid-asteroid collision
+      setAsteroids((prev) => {
+        const updated = prev.map((a) => {
           if (a.status !== "idle") return a;
 
           let nx = a.x + a.dx;
@@ -312,31 +366,130 @@ export function BlastGame({ onBack }: BlastGameProps) {
           let ndy = a.dy;
 
           // Bounce off walls
-          const halfSize = a.size / 2;
-          if (nx - halfSize < 0) {
-            nx = halfSize;
+          if (nx - a.radius < 0) {
+            nx = a.radius;
             ndx = Math.abs(ndx);
-          } else if (nx + halfSize > w) {
-            nx = w - halfSize;
+          } else if (nx + a.radius > w) {
+            nx = w - a.radius;
             ndx = -Math.abs(ndx);
           }
-          if (ny - halfSize < 0) {
-            ny = halfSize;
+          if (ny - a.radius < 0) {
+            ny = a.radius;
             ndy = Math.abs(ndy);
-          } else if (ny + halfSize > h) {
-            ny = h - halfSize;
+          } else if (ny + a.radius > h - 50) {
+            // keep above turret area
+            ny = h - 50 - a.radius;
             ndy = -Math.abs(ndy);
           }
 
           return { ...a, x: nx, y: ny, dx: ndx, dy: ndy };
-        }),
-      );
+        });
+
+        // Asteroid-asteroid collisions
+        for (let i = 0; i < updated.length; i++) {
+          for (let j = i + 1; j < updated.length; j++) {
+            const a = updated[i];
+            const b = updated[j];
+            if (a.status !== "idle" || b.status !== "idle") continue;
+
+            const ddx = b.x - a.x;
+            const ddy = b.y - a.y;
+            const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+            const minDist = a.radius + b.radius;
+
+            if (dist < minDist && dist > 0) {
+              // Normalize
+              const nx = ddx / dist;
+              const ny = ddy / dist;
+
+              // Relative velocity along collision normal
+              const dvx = a.dx - b.dx;
+              const dvy = a.dy - b.dy;
+              const dvn = dvx * nx + dvy * ny;
+
+              // Only resolve if moving toward each other
+              if (dvn > 0) {
+                updated[i] = {
+                  ...a,
+                  dx: a.dx - dvn * nx,
+                  dy: a.dy - dvn * ny,
+                };
+                updated[j] = {
+                  ...b,
+                  dx: b.dx + dvn * nx,
+                  dy: b.dy + dvn * ny,
+                };
+              }
+
+              // Separate overlapping asteroids
+              const overlap = minDist - dist;
+              const sepX = (nx * overlap) / 2;
+              const sepY = (ny * overlap) / 2;
+              updated[i] = {
+                ...updated[i],
+                x: updated[i].x - sepX,
+                y: updated[i].y - sepY,
+              };
+              updated[j] = {
+                ...updated[j],
+                x: updated[j].x + sepX,
+                y: updated[j].y + sepY,
+              };
+            }
+          }
+        }
+
+        return updated;
+      });
+
+      // Move bullets and check for hits against asteroid ref
+      setBullets((prev) => {
+        const remaining: Bullet[] = [];
+        const hitAsteroidIds: string[] = [];
+        const currentAsteroids = asteroidsRef.current;
+
+        for (const b of prev) {
+          const nx = b.x + b.dx;
+          const ny = b.y + b.dy;
+
+          // Off screen?
+          if (nx < -10 || nx > w + 10 || ny < -10 || ny > h + 10) continue;
+
+          // Check hit against asteroids
+          let hit = false;
+          for (const a of currentAsteroids) {
+            if (a.status !== "idle") continue;
+            if (circlesOverlap(nx, ny, BULLET_RADIUS, a.x, a.y, a.radius)) {
+              hitAsteroidIds.push(a.id);
+              hit = true;
+              break;
+            }
+          }
+
+          if (!hit) {
+            remaining.push({ ...b, x: nx, y: ny });
+          }
+        }
+
+        // Process hits outside of this setter
+        if (hitAsteroidIds.length > 0) {
+          // Use setTimeout to escape the setBullets updater
+          setTimeout(() => {
+            for (const id of hitAsteroidIds) {
+              handleAsteroidHitRef.current(id);
+            }
+          }, 0);
+        }
+
+        return remaining;
+      });
 
       animFrameRef.current = requestAnimationFrame(animate);
     };
 
     animFrameRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animFrameRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gamePhase]);
 
   /* ---- advance to next question or next level ---- */
@@ -344,12 +497,10 @@ export function BlastGame({ onBack }: BlastGameProps) {
     const nextQ = questionIdx + 1;
 
     if (nextQ >= currentLevel.questions) {
-      // Level complete
       if (currentLevelIdx < LEVELS.length - 1) {
         playCelebration();
         setGamePhase("levelComplete");
       } else {
-        // Game over
         playCelebration();
         setGamePhase("gameOver");
         if (totalCorrect + 1 === totalQuestions) {
@@ -361,10 +512,9 @@ export function BlastGame({ onBack }: BlastGameProps) {
     }
   }, [questionIdx, currentLevel, currentLevelIdx, totalCorrect]);
 
-  // Keep ref in sync so the timeout effect can use it
   advanceRef.current = advanceQuestion;
 
-  // Handle timeout (time ran out)
+  // Handle timeout
   useEffect(() => {
     if (timeLeft === 0 && gamePhase === "playing" && !lockedRef.current) {
       lockedRef.current = true;
@@ -388,70 +538,104 @@ export function BlastGame({ onBack }: BlastGameProps) {
     setGamePhase("playing");
   }, []);
 
-  /* ---- handle asteroid click ---- */
-  const handleAsteroidClick = useCallback(
+  /* ---- handle asteroid hit (from bullet or click) ---- */
+  const handleAsteroidHit = useCallback(
     (asteroidId: string) => {
       if (lockedRef.current) return;
       if (gamePhase !== "playing") return;
 
-      const asteroid = asteroids.find((a) => a.id === asteroidId);
-      if (!asteroid || asteroid.status !== "idle") return;
+      setAsteroids((prev) => {
+        const asteroid = prev.find((a) => a.id === asteroidId);
+        if (!asteroid || asteroid.status !== "idle") return prev;
 
-      lockedRef.current = true;
+        lockedRef.current = true;
 
-      if (asteroid.isCorrect) {
-        // Correct! — stop the countdown
-        if (timerRef.current) clearInterval(timerRef.current);
-        playCheckOff();
-        const points = Math.round(POINTS_CORRECT * multiplier);
-        setScore((prev) => prev + points);
-        setStreak((prev) => prev + 1);
-        setTotalCorrect((prev) => prev + 1);
-        setTotalAnswered((prev) => prev + 1);
+        if (asteroid.isCorrect) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          playCheckOff();
+          const points = Math.round(POINTS_CORRECT * multiplier);
+          setScore((s) => s + points);
+          setStreak((s) => s + 1);
+          setTotalCorrect((s) => s + 1);
+          setTotalAnswered((s) => s + 1);
 
-        // Mark asteroid as correct, then fade
-        setAsteroids((prev) =>
-          prev.map((a) =>
+          setTimeout(() => {
+            setAsteroids((p) =>
+              p.map((a) =>
+                a.id === asteroidId ? { ...a, status: "fading" as const } : a,
+              ),
+            );
+          }, 300);
+
+          setTimeout(() => {
+            lockedRef.current = false;
+            advanceRef.current();
+          }, 600);
+
+          return prev.map((a) =>
             a.id === asteroidId ? { ...a, status: "correct" as const } : a,
-          ),
-        );
-
-        setTimeout(() => {
-          setAsteroids((prev) =>
-            prev.map((a) =>
-              a.id === asteroidId ? { ...a, status: "fading" as const } : a,
-            ),
           );
-        }, 300);
+        } else {
+          playUncheck();
+          setScore((s) => Math.max(0, s + POINTS_WRONG));
+          setStreak(0);
+          setTotalAnswered((s) => s + 1);
 
-        setTimeout(() => {
-          lockedRef.current = false;
-          advanceQuestion();
-        }, 600);
-      } else {
-        // Wrong
-        playUncheck();
-        setScore((prev) => Math.max(0, prev + POINTS_WRONG));
-        setStreak(0);
-        setTotalAnswered((prev) => prev + 1);
+          setTimeout(() => {
+            setAsteroids((p) =>
+              p.map((a) =>
+                a.id === asteroidId ? { ...a, status: "idle" as const } : a,
+              ),
+            );
+            lockedRef.current = false;
+          }, 500);
 
-        setAsteroids((prev) =>
-          prev.map((a) =>
+          return prev.map((a) =>
             a.id === asteroidId ? { ...a, status: "wrong" as const } : a,
-          ),
-        );
-
-        setTimeout(() => {
-          setAsteroids((prev) =>
-            prev.map((a) =>
-              a.id === asteroidId ? { ...a, status: "idle" as const } : a,
-            ),
           );
-          lockedRef.current = false;
-        }, 500);
-      }
+        }
+      });
     },
-    [asteroids, gamePhase, multiplier, advanceQuestion],
+    [gamePhase, multiplier],
+  );
+
+  // Keep ref in sync for animation loop
+  handleAsteroidHitRef.current = handleAsteroidHit;
+
+  /* ---- fire bullet from turret ---- */
+  const handleFire = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (lockedRef.current || gamePhase !== "playing") return;
+
+      const area = areaRef.current;
+      if (!area) return;
+      const rect = area.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      const turret = getTurretPos();
+      const angle = Math.atan2(my - turret.y, mx - turret.x);
+
+      setBullets((prev) => [
+        ...prev,
+        {
+          id: `bullet-${++bulletIdRef.current}`,
+          x: turret.x,
+          y: turret.y - 20,
+          dx: Math.cos(angle) * BULLET_SPEED,
+          dy: Math.sin(angle) * BULLET_SPEED,
+        },
+      ]);
+    },
+    [gamePhase, getTurretPos],
+  );
+
+  /* ---- also allow direct clicking ---- */
+  const handleAsteroidClick = useCallback(
+    (asteroidId: string) => {
+      handleAsteroidHit(asteroidId);
+    },
+    [handleAsteroidHit],
   );
 
   /* ---- play again ---- */
@@ -466,6 +650,7 @@ export function BlastGame({ onBack }: BlastGameProps) {
     setTotalAnswered(0);
     setShowConfetti(false);
     setAsteroids([]);
+    setBullets([]);
     lockedRef.current = false;
   }, []);
 
@@ -481,7 +666,7 @@ export function BlastGame({ onBack }: BlastGameProps) {
     <div className="space-y-4">
       {showConfetti && <Confetti onDone={() => setShowConfetti(false)} />}
 
-      {/* Header: back + title */}
+      {/* Header */}
       <div className="flex items-center gap-3">
         <button
           onClick={() => {
@@ -497,7 +682,7 @@ export function BlastGame({ onBack }: BlastGameProps) {
             Blast
           </h2>
           <p className="text-xs text-muted-foreground">
-            Blast the correct definition before it escapes!
+            Shoot the correct definition before time runs out!
           </p>
         </div>
       </div>
@@ -513,8 +698,8 @@ export function BlastGame({ onBack }: BlastGameProps) {
               Ready to Blast?
             </h3>
             <p className="mx-auto mt-2 max-w-xs text-sm text-white/60">
-              A term appears at the top. Click the asteroid with the correct
-              definition. 3 levels, 15 questions. Go!
+              Aim your turret and shoot the asteroid with the correct
+              definition. Click to fire! 3 levels, 15 questions.
             </p>
           </div>
           <div className="flex justify-center gap-3">
@@ -546,9 +731,8 @@ export function BlastGame({ onBack }: BlastGameProps) {
       {/* ============ PLAYING ============ */}
       {gamePhase === "playing" && currentQuestion && (
         <>
-          {/* HUD: score, level, streak */}
+          {/* HUD */}
           <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-card px-4 py-3">
-            {/* Level indicator */}
             <div className="flex items-center gap-2">
               <Star className="h-4 w-4 text-datefix-gold" />
               <span className="text-xs font-bold text-foreground">
@@ -559,7 +743,6 @@ export function BlastGame({ onBack }: BlastGameProps) {
               </span>
             </div>
 
-            {/* Streak */}
             <div className="flex items-center gap-1.5">
               <Flame
                 className={cn(
@@ -584,7 +767,6 @@ export function BlastGame({ onBack }: BlastGameProps) {
               </span>
             </div>
 
-            {/* Score */}
             <div className="flex items-center gap-2">
               <Zap className="h-4 w-4 text-datefix-blue" />
               <span className="font-mono text-lg font-extrabold tabular-nums text-foreground">
@@ -593,7 +775,7 @@ export function BlastGame({ onBack }: BlastGameProps) {
             </div>
           </div>
 
-          {/* Countdown timer bar */}
+          {/* Timer */}
           <div className="relative">
             <div className="h-2 overflow-hidden rounded-full bg-muted">
               <div
@@ -614,7 +796,7 @@ export function BlastGame({ onBack }: BlastGameProps) {
               className={cn(
                 "absolute -top-0.5 right-0 font-mono text-sm font-extrabold tabular-nums",
                 timeLeft <= 3
-                  ? "text-red-400 animate-pulse"
+                  ? "animate-pulse text-red-400"
                   : timeLeft <= 5
                     ? "text-datefix-gold"
                     : "text-muted-foreground",
@@ -624,10 +806,10 @@ export function BlastGame({ onBack }: BlastGameProps) {
             </span>
           </div>
 
-          {/* Prompt bar: shows the term */}
+          {/* Prompt */}
           <div className="rounded-2xl border border-datefix-pink/20 bg-gradient-to-r from-datefix-pink/5 to-datefix-blue/5 px-5 py-4">
             <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-datefix-pink/70">
-              Find the correct definition
+              Shoot the correct definition
             </p>
             <p className="text-center text-xl font-extrabold leading-relaxed text-foreground">
               {currentQuestion.term}
@@ -639,12 +821,14 @@ export function BlastGame({ onBack }: BlastGameProps) {
             ref={areaRef}
             className="relative min-h-[500px] overflow-hidden rounded-2xl border border-white/5 bg-[#0c0a17]"
             style={{ cursor: "crosshair" }}
+            onMouseMove={handleMouseMove}
+            onClick={handleFire}
           >
             {/* Stars */}
             {stars.map((star) => (
               <div
                 key={star.id}
-                className="absolute rounded-full bg-white animate-sparkle"
+                className="animate-sparkle absolute rounded-full bg-white"
                 style={{
                   left: `${star.x}%`,
                   top: `${star.y}%`,
@@ -657,33 +841,60 @@ export function BlastGame({ onBack }: BlastGameProps) {
               />
             ))}
 
+            {/* Bullets */}
+            {bullets.map((bullet) => (
+              <div
+                key={bullet.id}
+                className="absolute rounded-full bg-datefix-gold shadow-[0_0_12px_rgba(224,169,88,0.8)]"
+                style={{
+                  left: bullet.x - BULLET_RADIUS,
+                  top: bullet.y - BULLET_RADIUS,
+                  width: BULLET_RADIUS * 2,
+                  height: BULLET_RADIUS * 2,
+                }}
+              />
+            ))}
+
             {/* Asteroids */}
             {asteroids.map((asteroid) => {
               const isCorrect = asteroid.status === "correct";
               const isWrong = asteroid.status === "wrong";
               const isFading = asteroid.status === "fading";
+              const diameter = asteroid.radius * 2;
 
               return (
                 <button
                   key={asteroid.id}
-                  onClick={() => handleAsteroidClick(asteroid.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAsteroidClick(asteroid.id);
+                  }}
                   disabled={asteroid.status !== "idle"}
                   className={cn(
-                    "absolute flex cursor-pointer items-center justify-center rounded-full border-2 p-2 text-center font-bold shadow-lg transition-all duration-300",
+                    "absolute flex cursor-pointer items-center justify-center rounded-full border-2 p-3 text-center font-bold shadow-lg transition-all duration-300",
                     asteroid.status === "idle" &&
-                      `${asteroid.color} ${ASTEROID_BORDER_COLORS[asteroids.indexOf(asteroid) % ASTEROID_BORDER_COLORS.length]} hover:scale-110 hover:brightness-125 active:scale-95`,
+                      "hover:scale-105 hover:brightness-110 active:scale-95",
                     isCorrect &&
-                      "scale-125 border-datefix-green bg-datefix-green shadow-[0_0_30px_rgba(160,199,93,0.6)]",
+                      "scale-110 border-datefix-green shadow-[0_0_30px_rgba(160,199,93,0.6)]",
                     isWrong &&
-                      "animate-wiggle border-red-500 bg-red-500/80 shadow-[0_0_20px_rgba(239,68,68,0.5)]",
-                    isFading &&
-                      "scale-0 border-datefix-green/0 bg-datefix-green/0 opacity-0",
+                      "animate-wiggle border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)]",
+                    isFading && "scale-0 opacity-0",
                   )}
                   style={{
-                    left: asteroid.x - asteroid.size / 2,
-                    top: asteroid.y - asteroid.size / 2,
-                    width: asteroid.size,
-                    height: asteroid.size,
+                    left: asteroid.x - asteroid.radius,
+                    top: asteroid.y - asteroid.radius,
+                    width: diameter,
+                    height: diameter,
+                    backgroundColor: isCorrect
+                      ? "#a0c75d"
+                      : isWrong
+                        ? "rgba(239,68,68,0.8)"
+                        : asteroid.color,
+                    borderColor: isCorrect
+                      ? "#a0c75d"
+                      : isWrong
+                        ? "#ef4444"
+                        : `${asteroid.color}99`,
                     transition: isFading
                       ? "all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)"
                       : isCorrect || isWrong
@@ -693,12 +904,10 @@ export function BlastGame({ onBack }: BlastGameProps) {
                 >
                   <span
                     className={cn(
-                      "line-clamp-3 text-[11px] leading-tight sm:text-xs",
-                      isCorrect || isFading
+                      "text-[10px] font-bold leading-tight sm:text-[11px]",
+                      isCorrect || isFading || isWrong
                         ? "text-white"
-                        : isWrong
-                          ? "text-white"
-                          : "text-white/90",
+                        : "text-[#1d1644]",
                     )}
                   >
                     {asteroid.text}
@@ -707,7 +916,37 @@ export function BlastGame({ onBack }: BlastGameProps) {
               );
             })}
 
-            {/* Level label overlay */}
+            {/* Turret */}
+            <div
+              className="pointer-events-none absolute"
+              style={{
+                left: "50%",
+                bottom: 8,
+                transform: "translateX(-50%)",
+              }}
+            >
+              {/* Turret base */}
+              <div className="relative flex flex-col items-center">
+                {/* Barrel */}
+                <div
+                  className="absolute origin-bottom rounded-full bg-gradient-to-t from-white/60 to-white/20"
+                  style={{
+                    width: TURRET_WIDTH,
+                    height: TURRET_HEIGHT,
+                    bottom: 12,
+                    left: `calc(50% - ${TURRET_WIDTH / 2}px)`,
+                    transform: `rotate(${turretAngle + Math.PI / 2}rad)`,
+                    transformOrigin: "bottom center",
+                  }}
+                />
+                {/* Base dome */}
+                <div className="h-6 w-10 rounded-t-full bg-gradient-to-t from-white/30 to-white/50" />
+                {/* Platform */}
+                <div className="h-2 w-14 rounded-sm bg-white/20" />
+              </div>
+            </div>
+
+            {/* Q counter overlay */}
             <div className="pointer-events-none absolute bottom-3 left-3">
               <span className="rounded-lg bg-white/5 px-2.5 py-1 text-[10px] font-bold text-white/30">
                 Q{questionIdx + 1}/{currentLevel.questions}

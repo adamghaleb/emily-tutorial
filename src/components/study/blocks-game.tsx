@@ -17,6 +17,7 @@ import {
   Grid3X3,
   HelpCircle,
   Layers,
+  AlertTriangle,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -44,14 +45,16 @@ interface Piece {
   id: string;
   shape: Shape;
   color: string;
+  isPenalty?: boolean;
 }
 
 interface QuizState {
   questionIndex: number;
   options: string[];
   correctAnswer: string;
-  triesLeft: number;
+  wrongCount: number;
   revealed: boolean;
+  wrongAnswers: Set<string>;
 }
 
 type CellValue = string | null; // color string or null (empty)
@@ -70,11 +73,12 @@ interface GameState {
   quizState: QuizState | null;
   clearingCells: Set<string>; // "row-col" keys for cells being animated
   usedQuestionIds: Set<number>;
+  penaltyPieces: number; // accumulated penalty pieces for next round
 }
 
 type Action =
   | { type: "SELECT_PIECE"; pieceId: string }
-  | { type: "PLACE_PIECE"; row: number; col: number }
+  | { type: "PLACE_PIECE"; row: number; col: number; pieceId?: string }
   | { type: "ANSWER_QUIZ"; chosenAnswer: string }
   | { type: "QUIZ_CONTINUE" }
   | { type: "CLEAR_LINES_DONE" }
@@ -158,9 +162,9 @@ function shuffle<T>(arr: T[]): T[] {
 
 let pieceCounter = 0;
 
-function generatePieces(count: number): Piece[] {
+function generatePieces(count: number, penaltyCount = 0): Piece[] {
   const pieces: Piece[] = [];
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < count + penaltyCount; i++) {
     const template =
       PIECE_TEMPLATES[Math.floor(Math.random() * PIECE_TEMPLATES.length)];
     const color = COLORS[Math.floor(Math.random() * COLORS.length)];
@@ -168,6 +172,7 @@ function generatePieces(count: number): Piece[] {
       id: `piece-${++pieceCounter}`,
       shape: template.shape,
       color,
+      isPenalty: i >= count,
     });
   }
   return pieces;
@@ -268,8 +273,9 @@ function buildQuizState(usedIds: Set<number>): QuizState {
     questionIndex: card.id,
     options,
     correctAnswer: card.answer,
-    triesLeft: 2,
+    wrongCount: 0,
     revealed: false,
+    wrongAnswers: new Set<string>(),
   };
 }
 
@@ -307,6 +313,7 @@ function createInitialState(): GameState {
     quizState: null,
     clearingCells: new Set(),
     usedQuestionIds: new Set(),
+    penaltyPieces: 0,
   };
 }
 
@@ -322,8 +329,9 @@ function reducer(state: GameState, action: Action): GameState {
     }
 
     case "PLACE_PIECE": {
-      if (state.phase !== "playing" || !state.selectedPieceId) return state;
-      const piece = state.pieces.find((p) => p.id === state.selectedPieceId);
+      const targetPieceId = action.pieceId ?? state.selectedPieceId;
+      if (state.phase !== "playing" || !targetPieceId) return state;
+      const piece = state.pieces.find((p) => p.id === targetPieceId);
       if (!piece) return state;
       if (!canPlacePiece(state.grid, piece, action.row, action.col))
         return state;
@@ -434,46 +442,38 @@ function reducer(state: GameState, action: Action): GameState {
       const quiz = state.quizState;
 
       if (action.chosenAnswer === quiz.correctAnswer) {
-        // Correct
+        // Correct — bonus only if no wrong answers
         return {
           ...state,
           quizState: {
             ...quiz,
             revealed: true,
-            triesLeft: quiz.triesLeft,
           },
-          score: state.score + 5,
+          score: state.score + (quiz.wrongCount === 0 ? 5 : 0),
           questionsAnswered: state.questionsAnswered + 1,
         };
       }
 
-      // Wrong
-      const newTries = quiz.triesLeft - 1;
-      if (newTries <= 0) {
-        // Out of tries — reveal and continue
-        return {
-          ...state,
-          quizState: {
-            ...quiz,
-            triesLeft: 0,
-            revealed: true,
-          },
-          questionsAnswered: state.questionsAnswered + 1,
-        };
-      }
+      // Wrong — accumulate penalty, mark this option as wrong
+      const newWrongCount = quiz.wrongCount + 1;
+      const newWrongAnswers = new Set(quiz.wrongAnswers);
+      newWrongAnswers.add(action.chosenAnswer);
 
       return {
         ...state,
+        penaltyPieces: state.penaltyPieces + 1,
         quizState: {
           ...quiz,
-          triesLeft: newTries,
+          wrongCount: newWrongCount,
+          wrongAnswers: newWrongAnswers,
         },
       };
     }
 
     case "QUIZ_CONTINUE": {
       if (state.phase !== "quiz") return state;
-      const newPieces = generatePieces(3);
+      const penalty = state.penaltyPieces;
+      const newPieces = generatePieces(3, penalty);
 
       // Check game over with new pieces
       if (!canAnyPieceFit(state.grid, newPieces)) {
@@ -485,6 +485,7 @@ function reducer(state: GameState, action: Action): GameState {
           phase: "gameover",
           quizState: null,
           highScore: hs,
+          penaltyPieces: 0,
         };
       }
 
@@ -494,6 +495,7 @@ function reducer(state: GameState, action: Action): GameState {
         selectedPieceId: null,
         phase: "playing",
         quizState: null,
+        penaltyPieces: 0,
       };
     }
 
@@ -502,6 +504,7 @@ function reducer(state: GameState, action: Action): GameState {
       return {
         ...createInitialState(),
         highScore: Math.max(state.score, state.highScore),
+        penaltyPieces: 0,
       };
     }
 
@@ -514,32 +517,45 @@ function reducer(state: GameState, action: Action): GameState {
 /*  Sub-Components                                                     */
 /* ------------------------------------------------------------------ */
 
-/** Renders a mini piece preview */
+/** Renders a mini piece preview — click to select OR drag onto grid */
 function PiecePreview({
   piece,
   isSelected,
   onClick,
+  onDragStart,
 }: {
   piece: Piece;
   isSelected: boolean;
   onClick: () => void;
+  onDragStart: (pieceId: string) => void;
 }) {
-  // Find bounding box of the shape
   const maxRow = Math.max(...piece.shape.map(([r]) => r)) + 1;
   const maxCol = Math.max(...piece.shape.map(([, c]) => c)) + 1;
-
   const cells = new Set(piece.shape.map(([r, c]) => `${r}-${c}`));
 
   return (
-    <button
+    <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", piece.id);
+        e.dataTransfer.effectAllowed = "move";
+        onDragStart(piece.id);
+      }}
       onClick={onClick}
       className={cn(
-        "flex cursor-pointer flex-col items-center gap-1 rounded-xl border-2 p-3 transition-all duration-150",
+        "relative flex cursor-grab flex-col items-center gap-1 rounded-xl border-2 p-3 transition-all duration-150 active:cursor-grabbing",
         isSelected
           ? "scale-105 border-datefix-blue bg-datefix-blue/10 shadow-lg ring-2 ring-datefix-blue/30"
-          : "border-border/50 bg-card hover:border-datefix-blue/30 hover:shadow-md",
+          : piece.isPenalty
+            ? "border-red-500/40 bg-red-500/5 hover:border-red-500/60 hover:shadow-md"
+            : "border-border/50 bg-card hover:border-datefix-blue/30 hover:shadow-md",
       )}
     >
+      {piece.isPenalty && (
+        <div className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 shadow-sm">
+          <AlertTriangle className="h-3 w-3 text-white" />
+        </div>
+      )}
       <div
         className="grid gap-0.5"
         style={{
@@ -563,7 +579,7 @@ function PiecePreview({
           }),
         )}
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -580,7 +596,6 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
   const [hoverCells, setHoverCells] = useState<Set<string>>(new Set());
   const [hoverValid, setHoverValid] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [wrongAnswer, setWrongAnswer] = useState<string | null>(null);
 
   const {
     grid,
@@ -593,6 +608,7 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
     phase,
     quizState,
     clearingCells,
+    penaltyPieces,
   } = state;
 
   const selectedPiece = useMemo(
@@ -671,6 +687,39 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
     [phase],
   );
 
+  /* ---- Drag-and-drop onto grid ---- */
+  const handleDragStart = useCallback(
+    (pieceId: string) => {
+      if (phase !== "playing") return;
+      dispatch({ type: "SELECT_PIECE", pieceId });
+    },
+    [phase],
+  );
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent, row: number, col: number) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      handleCellHover(row, col);
+    },
+    [handleCellHover],
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent, row: number, col: number) => {
+      e.preventDefault();
+      const pieceId = e.dataTransfer.getData("text/plain");
+      if (!pieceId) return;
+      const piece = pieces.find((p) => p.id === pieceId);
+      if (!piece) return;
+      if (!canPlacePiece(grid, piece, row, col)) return;
+      playClick();
+      dispatch({ type: "PLACE_PIECE", row, col, pieceId });
+      setHoverCells(new Set());
+    },
+    [pieces, grid],
+  );
+
   /* ---- Quiz answer ---- */
   const handleAnswer = useCallback(
     (answer: string) => {
@@ -679,10 +728,8 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
       if (answer === quizState.correctAnswer) {
         playCheckOff();
         dispatch({ type: "ANSWER_QUIZ", chosenAnswer: answer });
-        setWrongAnswer(null);
       } else {
         playUncheck();
-        setWrongAnswer(answer);
         dispatch({ type: "ANSWER_QUIZ", chosenAnswer: answer });
       }
     },
@@ -699,7 +746,6 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
   const handlePlayAgain = useCallback(() => {
     playClick();
     setShowConfetti(false);
-    setWrongAnswer(null);
     dispatch({ type: "PLAY_AGAIN" });
   }, []);
 
@@ -808,6 +854,8 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
                       }
                       onMouseEnter={() => handleCellHover(r, c)}
                       onClick={() => handleCellClick(r, c)}
+                      onDragOver={(e) => handleDragOver(e, r, c)}
+                      onDrop={(e) => handleDrop(e, r, c)}
                     />
                   );
                 }),
@@ -819,16 +867,17 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
           <div className="space-y-2">
             <p className="text-center text-xs font-semibold text-muted-foreground">
               {selectedPieceId
-                ? "Click a cell to place the piece"
-                : "Select a piece below"}
+                ? "Click a cell or drag the piece to place it"
+                : "Click or drag a piece to place it"}
             </p>
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-3">
               {pieces.map((piece) => (
                 <PiecePreview
                   key={piece.id}
                   piece={piece}
                   isSelected={piece.id === selectedPieceId}
                   onClick={() => handlePieceSelect(piece.id)}
+                  onDragStart={handleDragStart}
                 />
               ))}
               {pieces.length === 0 && (
@@ -851,10 +900,10 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
             <p className="text-base font-bold text-foreground leading-snug">
               {quizQuestion.question}
             </p>
-            {!quizState.revealed && (
-              <p className="text-xs text-muted-foreground">
-                {quizState.triesLeft}{" "}
-                {quizState.triesLeft === 1 ? "try" : "tries"} remaining
+            {!quizState.revealed && quizState.wrongCount > 0 && (
+              <p className="text-xs font-bold text-red-400">
+                +{quizState.wrongCount}{" "}
+                {quizState.wrongCount === 1 ? "piece" : "pieces"} penalty
               </p>
             )}
           </div>
@@ -862,22 +911,23 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
           <div className="space-y-2">
             {quizState.options.map((option, i) => {
               const isCorrect = option === quizState.correctAnswer;
-              const isWrong = option === wrongAnswer && !isCorrect;
+              const wasWrong = quizState.wrongAnswers.has(option);
               const isRevealed = quizState.revealed;
+              const isDisabled = isRevealed || wasWrong;
 
               return (
                 <button
                   key={i}
                   onClick={() => {
-                    if (!isRevealed) handleAnswer(option);
+                    if (!isDisabled) handleAnswer(option);
                   }}
-                  disabled={isRevealed}
+                  disabled={isDisabled}
                   className={cn(
                     "w-full cursor-pointer rounded-xl border px-4 py-3 text-left text-sm font-medium transition-all",
                     isRevealed && isCorrect
                       ? "border-datefix-green/50 bg-datefix-green/10 text-datefix-green"
-                      : isWrong
-                        ? "border-red-500/50 bg-red-500/10 text-red-400"
+                      : wasWrong
+                        ? "border-red-500/50 bg-red-500/10 text-red-400 opacity-60"
                         : isRevealed
                           ? "border-border/30 bg-card/50 text-muted-foreground opacity-60"
                           : "border-border/50 bg-card text-foreground hover:border-datefix-blue/40 hover:bg-datefix-blue/5",
@@ -887,6 +937,11 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
                     {String.fromCharCode(65 + i)}
                   </span>
                   {option}
+                  {wasWrong && !isRevealed && (
+                    <span className="ml-2 text-[10px] font-bold text-red-400">
+                      +1 piece
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -897,14 +952,14 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
               <p
                 className={cn(
                   "text-sm font-bold",
-                  quizState.triesLeft > 0
+                  quizState.wrongCount === 0
                     ? "text-datefix-green"
                     : "text-datefix-gold",
                 )}
               >
-                {quizState.triesLeft > 0
+                {quizState.wrongCount === 0
                   ? "Correct! +5 bonus points"
-                  : "The correct answer is highlighted above"}
+                  : `Correct! Next round: ${3 + penaltyPieces} pieces to place`}
               </p>
               <button
                 onClick={handleQuizContinue}
