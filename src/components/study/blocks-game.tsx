@@ -634,6 +634,14 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
     [pieces, selectedPieceId],
   );
 
+  // Prevent page scroll during touch drag (must be non-passive)
+  useEffect(() => {
+    if (!touchDragPos) return;
+    const prevent = (e: TouchEvent) => e.preventDefault();
+    document.addEventListener("touchmove", prevent, { passive: false });
+    return () => document.removeEventListener("touchmove", prevent);
+  }, [touchDragPos]);
+
   // Handle clearing animation
   useEffect(() => {
     if (clearingCells.size > 0) {
@@ -741,20 +749,25 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
-      if (!touchDragPieceRef.current) return;
-      e.preventDefault();
+      const pieceId = touchDragPieceRef.current;
+      if (!pieceId) return;
       const touch = e.touches[0];
       setTouchDragPos({ x: touch.clientX, y: touch.clientY });
 
-      // Highlight the cell under the finger
+      // Highlight from bottom-left anchor
       const cell = getCellFromPoint(touch.clientX, touch.clientY);
       if (cell) {
-        handleCellHover(cell.row, cell.col);
+        const piece = pieces.find((p) => p.id === pieceId);
+        const maxShapeRow = piece
+          ? Math.max(...piece.shape.map(([r]) => r))
+          : 0;
+        const anchorRow = cell.row - maxShapeRow;
+        handleCellHover(anchorRow, cell.col);
       } else {
         setHoverCells(new Set());
       }
     },
-    [getCellFromPoint, handleCellHover],
+    [getCellFromPoint, handleCellHover, pieces],
   );
 
   const handleTouchEnd = useCallback(
@@ -767,14 +780,23 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
 
       if (cell) {
         const piece = pieces.find((p) => p.id === pieceId);
-        if (piece && canPlacePiece(grid, piece, cell.row, cell.col)) {
-          playClick();
-          dispatch({
-            type: "PLACE_PIECE",
-            row: cell.row,
-            col: cell.col,
-            pieceId,
-          });
+        if (piece) {
+          // Anchor from bottom-left: offset row so the bottom of the piece
+          // lands on the touched cell
+          const maxShapeRow = Math.max(...piece.shape.map(([r]) => r));
+          const anchorRow = cell.row - maxShapeRow;
+          if (
+            anchorRow >= 0 &&
+            canPlacePiece(grid, piece, anchorRow, cell.col)
+          ) {
+            playClick();
+            dispatch({
+              type: "PLACE_PIECE",
+              row: anchorRow,
+              col: cell.col,
+              pieceId,
+            });
+          }
         }
       }
 
@@ -909,14 +931,17 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
 
       {/* ---- PLAYING PHASE ---- */}
       {phase === "playing" && (
-        <>
+        <div
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          className="space-y-4"
+          style={{ touchAction: touchDragPos ? "none" : "auto" }}
+        >
           {/* Grid */}
           <div
             ref={gridContainerRef}
             className="mx-auto w-fit rounded-2xl border border-border/50 bg-card p-2"
             onMouseLeave={handleGridLeave}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
           >
             <div
               className="grid gap-[3px]"
@@ -1042,7 +1067,7 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
               )}
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* ---- QUIZ PHASE ---- */}
