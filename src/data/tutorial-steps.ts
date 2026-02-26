@@ -62,8 +62,13 @@ export const tutorialSteps: TutorialStep[] = [
     id: 8,
     title: "How DateFix Demo Was Built",
     description:
-      "Fun fact: Adam built the entire datefix-demo by vibe coding! He started with a reference image of the DateFix website design, fed it to Claude, and asked it to recreate the layout. Then he iterated — tweaking colors, fixing spacing, adding animations — all through conversation with Claude.",
+      "Fun fact: Adam built the entire datefix-demo by vibe coding! He started with AI-generated product images, extracted assets in Photoshop, then assembled everything into an interactive web experience with Claude Code. He even built custom debug tools to align everything pixel-perfectly.",
     icon: "paintbrush",
+    action: { label: "Learn More", actionId: "build-guide" },
+    link: {
+      url: "/build-guide/datefix-build-guide.pdf",
+      label: "Read Full Build Guide PDF",
+    },
   },
   {
     id: 9,

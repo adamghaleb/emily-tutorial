@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { tutorialSteps } from "@/data/tutorial-steps";
 import { TutorialStep } from "@/components/tutorial/tutorial-step";
+import { BuildGuide } from "@/components/tutorial/build-guide";
 import { Confetti } from "@/components/confetti";
 import { playCheckOff, playUncheck, playCelebration } from "@/lib/sounds";
 import { PartyPopper, Sparkles, Trophy } from "lucide-react";
@@ -10,9 +11,12 @@ import { PartyPopper, Sparkles, Trophy } from "lucide-react";
 const STORAGE_KEY = "emily-tutorial-completed";
 const TOTAL = tutorialSteps.length;
 
+type View = "steps" | "build-guide";
+
 export function TutorialTab() {
   const [completedIds, setCompletedIds] = useState<Set<number>>(new Set());
   const [showConfetti, setShowConfetti] = useState(false);
+  const [view, setView] = useState<View>("steps");
   const prevCompleted = useRef(completedIds.size);
 
   // Load from localStorage
@@ -61,8 +65,27 @@ export function TutorialTab() {
     });
   }, []);
 
+  const handleAction = useCallback((actionId: string) => {
+    if (actionId === "build-guide") {
+      setView("build-guide");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, []);
+
   const allDone = completedIds.size === TOTAL;
   const doneCount = completedIds.size;
+
+  // Build Guide sub-view
+  if (view === "build-guide") {
+    return (
+      <BuildGuide
+        onBack={() => {
+          setView("steps");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -111,6 +134,7 @@ export function TutorialTab() {
             step={step}
             completed={completedIds.has(step.id)}
             onToggle={() => handleToggle(step.id)}
+            onAction={handleAction}
           />
         ))}
       </div>

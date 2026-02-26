@@ -20,6 +20,7 @@ import {
   Rocket,
   CircleCheck,
   Circle,
+  BookOpen,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -67,9 +68,15 @@ interface TutorialStepProps {
   step: TutorialStepType;
   completed: boolean;
   onToggle: () => void;
+  onAction?: (actionId: string) => void;
 }
 
-export function TutorialStep({ step, completed, onToggle }: TutorialStepProps) {
+export function TutorialStep({
+  step,
+  completed,
+  onToggle,
+  onAction,
+}: TutorialStepProps) {
   const [copied, setCopied] = useState(false);
   const accent = stepAccents[(step.id - 1) % stepAccents.length];
 
@@ -176,9 +183,21 @@ export function TutorialStep({ step, completed, onToggle }: TutorialStepProps) {
             </div>
           )}
 
-          {/* Links — pill style */}
-          {allLinks.length > 0 && (
+          {/* Action + Links row */}
+          {(step.action || allLinks.length > 0) && (
             <div className="mt-4 flex flex-wrap gap-2">
+              {step.action && onAction && (
+                <button
+                  onClick={() => {
+                    playClick();
+                    onAction(step.action!.actionId);
+                  }}
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-datefix-pink px-4 py-2 text-sm font-semibold text-white transition-all hover:scale-[1.02] hover:brightness-110 active:scale-95"
+                >
+                  <BookOpen className="h-3.5 w-3.5" />
+                  {step.action.label}
+                </button>
+              )}
               {allLinks.map((lnk) => (
                 <a
                   key={lnk.url}

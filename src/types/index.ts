@@ -5,6 +5,8 @@ export interface TutorialStep {
   code?: string;
   link?: { url: string; label: string };
   links?: { url: string; label: string }[];
+  /** Internal action button (navigates within the app) */
+  action?: { label: string; actionId: string };
   icon: string;
 }
 
