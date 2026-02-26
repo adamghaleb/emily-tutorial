@@ -21,11 +21,17 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-/** Pick `count` random items from `pool`, excluding items with `excludeId` */
-function pickDistractors(excludeId: number, count: number) {
-  const pool = quizCards.filter((c) => c.id !== excludeId);
-  const shuffled = shuffle(pool);
-  return shuffled.slice(0, count);
+/** Build 4 options: correct answer + 3 distractors (from card data), shuffled */
+function buildOptions(card: (typeof quizCards)[number]) {
+  const options = [
+    { id: card.id, text: card.answer, isCorrect: true },
+    ...card.distractors.map((d, i) => ({
+      id: -(card.id * 10 + i),
+      text: d,
+      isCorrect: false,
+    })),
+  ];
+  return shuffle(options);
 }
 
 export function LearnMode({ onBack }: LearnModeProps) {
@@ -39,11 +45,10 @@ export function LearnMode({ onBack }: LearnModeProps) {
   const total = shuffledCards.length;
   const currentCard = shuffledCards[currentIndex];
 
-  // Build 4 options: correct + 3 distractors, shuffled
+  // Build 4 options: correct answer + 3 distractors, shuffled
   const options = useMemo(() => {
     if (!currentCard) return [];
-    const distractors = pickDistractors(currentCard.id, 3);
-    return shuffle([currentCard, ...distractors]);
+    return buildOptions(currentCard);
   }, [currentCard]);
 
   const advance = useCallback(() => {
@@ -58,12 +63,12 @@ export function LearnMode({ onBack }: LearnModeProps) {
   }, [currentIndex, total]);
 
   const handleSelect = useCallback(
-    (optionId: number) => {
+    (optionId: number, isCorrect: boolean) => {
       if (answerState !== "idle") return;
 
       setSelectedId(optionId);
 
-      if (optionId === currentCard.id) {
+      if (isCorrect) {
         setAnswerState("correct");
         setScore((s) => s + 1);
         playCheckOff();
@@ -74,16 +79,21 @@ export function LearnMode({ onBack }: LearnModeProps) {
 
       setTimeout(advance, 1200);
     },
-    [answerState, currentCard, advance],
+    [answerState, advance],
+  );
+
+  const correctOptionId = useMemo(
+    () => options.find((o) => o.isCorrect)?.id ?? currentCard.id,
+    [options, currentCard],
   );
 
   const handleDontKnow = useCallback(() => {
     if (answerState !== "idle") return;
     setAnswerState("revealed");
-    setSelectedId(currentCard.id);
+    setSelectedId(correctOptionId);
     playClick();
     setTimeout(advance, 1500);
-  }, [answerState, currentCard, advance]);
+  }, [answerState, correctOptionId, advance]);
 
   const handleRestart = useCallback(() => {
     setCurrentIndex(0);
@@ -108,7 +118,7 @@ export function LearnMode({ onBack }: LearnModeProps) {
   };
 
   // Option button styling per state
-  const getOptionClasses = (optionId: number) => {
+  const getOptionClasses = (optionId: number, optionIsCorrect: boolean) => {
     const base =
       "w-full rounded-xl border-2 p-4 text-left text-sm font-semibold transition-all duration-200";
 
@@ -116,13 +126,12 @@ export function LearnMode({ onBack }: LearnModeProps) {
       return `${base} border-border bg-card text-foreground hover:border-datefix-blue/50 hover:bg-datefix-blue/5 cursor-pointer active:scale-[0.97]`;
     }
 
-    const isCorrect = optionId === currentCard.id;
     const isSelected = optionId === selectedId;
 
-    if (isCorrect) {
+    if (optionIsCorrect) {
       return `${base} border-datefix-green bg-datefix-green/10 text-foreground`;
     }
-    if (isSelected && !isCorrect) {
+    if (isSelected && !optionIsCorrect) {
       return `${base} border-destructive bg-destructive/10 text-foreground`;
     }
     return `${base} border-border/50 bg-card/50 text-muted-foreground opacity-50`;
@@ -217,26 +226,26 @@ export function LearnMode({ onBack }: LearnModeProps) {
         Question {currentIndex + 1} of {total}
       </p>
 
-      {/* Card with definition prompt */}
+      {/* Card with question prompt */}
       <div className="rounded-2xl border bg-card p-6">
         <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-datefix-pink">
-          Definition
+          Question
         </p>
         <p className="text-base font-semibold leading-relaxed text-foreground">
-          {currentCard.answer}
+          {currentCard.question}
         </p>
       </div>
 
       {/* Options grid */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {options.map((option) => (
           <button
             key={option.id}
-            onClick={() => handleSelect(option.id)}
+            onClick={() => handleSelect(option.id, option.isCorrect)}
             disabled={answerState !== "idle"}
-            className={getOptionClasses(option.id)}
+            className={getOptionClasses(option.id, option.isCorrect)}
           >
-            {option.question}
+            {option.text}
           </button>
         ))}
       </div>

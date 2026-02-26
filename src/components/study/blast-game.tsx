@@ -39,6 +39,7 @@ interface LevelConfig {
   questions: number;
   asteroidCount: number;
   speed: number;
+  timePerQuestion: number; // seconds
   label: string;
 }
 
@@ -47,9 +48,30 @@ interface LevelConfig {
 /* ------------------------------------------------------------------ */
 
 const LEVELS: LevelConfig[] = [
-  { level: 1, questions: 5, asteroidCount: 4, speed: 0.4, label: "Cadet" },
-  { level: 2, questions: 5, asteroidCount: 5, speed: 0.6, label: "Pilot" },
-  { level: 3, questions: 5, asteroidCount: 6, speed: 0.85, label: "Commander" },
+  {
+    level: 1,
+    questions: 5,
+    asteroidCount: 4,
+    speed: 0.4,
+    timePerQuestion: 15,
+    label: "Cadet",
+  },
+  {
+    level: 2,
+    questions: 5,
+    asteroidCount: 5,
+    speed: 0.6,
+    timePerQuestion: 12,
+    label: "Pilot",
+  },
+  {
+    level: 3,
+    questions: 5,
+    asteroidCount: 6,
+    speed: 0.85,
+    timePerQuestion: 10,
+    label: "Commander",
+  },
 ];
 
 const ASTEROID_COLORS = [
@@ -92,7 +114,7 @@ function buildQuestionQueue() {
   return shuffled.slice(0, 15);
 }
 
-/** Generate asteroids for a single question */
+/** Generate asteroids for a single question — correct answer + distractors as SHORT text */
 function generateAsteroids(
   correctCard: (typeof quizCards)[number],
   count: number,
@@ -100,35 +122,40 @@ function generateAsteroids(
   areaH: number,
   speed: number,
 ): Asteroid[] {
-  // Pick wrong answers from other cards
-  const wrongCards = shuffle(
-    quizCards.filter((c) => c.id !== correctCard.id),
-  ).slice(0, count - 1);
+  // Correct answer = the card's shortDef; distractors from the card
+  const distractorTexts = shuffle([...correctCard.distractors]).slice(
+    0,
+    count - 1,
+  );
 
-  const allCards = shuffle([
-    { card: correctCard, isCorrect: true },
-    ...wrongCards.map((c) => ({ card: c, isCorrect: false })),
+  const allOptions = shuffle([
+    { text: correctCard.shortDef, cardId: correctCard.id, isCorrect: true },
+    ...distractorTexts.map((text, i) => ({
+      text,
+      cardId: -(correctCard.id * 10 + i),
+      isCorrect: false,
+    })),
   ]);
 
   const padding = 60;
   const usableW = Math.max(areaW - padding * 2, 200);
   const usableH = Math.max(areaH - padding * 2, 200);
 
-  return allCards.map((item, i) => {
+  return allOptions.map((item, i) => {
     const angle = Math.random() * Math.PI * 2;
     const baseSpeed = speed * (0.6 + Math.random() * 0.8);
 
     return {
-      id: `asteroid-${item.card.id}-${i}-${Date.now()}`,
-      text: item.card.question,
-      cardId: item.card.id,
+      id: `asteroid-${item.cardId}-${i}-${Date.now()}`,
+      text: item.text,
+      cardId: item.cardId,
       isCorrect: item.isCorrect,
       x: padding + Math.random() * usableW,
       y: padding + Math.random() * usableH,
       dx: Math.cos(angle) * baseSpeed,
       dy: Math.sin(angle) * baseSpeed,
       color: ASTEROID_COLORS[i % ASTEROID_COLORS.length],
-      size: 80 + Math.random() * 20,
+      size: 100 + Math.random() * 20,
       status: "idle" as const,
     };
   });
@@ -177,10 +204,12 @@ export function BlastGame({ onBack }: BlastGameProps) {
 
   const [questions] = useState(() => buildQuestionQueue());
   const [asteroids, setAsteroids] = useState<Asteroid[]>([]);
+  const [timeLeft, setTimeLeft] = useState(0);
 
   const areaRef = useRef<HTMLDivElement>(null);
   const animFrameRef = useRef<number>(0);
   const lockedRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stars = useStars(80);
 
@@ -222,14 +251,41 @@ export function BlastGame({ onBack }: BlastGameProps) {
     lockedRef.current = false;
   }, []);
 
-  /* ---- spawn on question change ---- */
+  /* ---- spawn on question change + start countdown ---- */
   useEffect(() => {
     if (gamePhase === "playing" && currentQuestion) {
       // Small delay so the DOM has rendered
       const t = setTimeout(() => spawnAsteroids(), 100);
-      return () => clearTimeout(t);
+
+      // Reset countdown timer
+      setTimeLeft(currentLevel.timePerQuestion);
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            // Time's up — skip this question
+            if (timerRef.current) clearInterval(timerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => {
+        clearTimeout(t);
+        if (timerRef.current) clearInterval(timerRef.current);
+      };
     }
-  }, [gamePhase, globalQuestionIdx, spawnAsteroids, currentQuestion]);
+  }, [
+    gamePhase,
+    globalQuestionIdx,
+    spawnAsteroids,
+    currentQuestion,
+    currentLevel,
+  ]);
+
+  /* ---- handle timeout (time ran out) — uses advanceRef to avoid TDZ ---- */
+  const advanceRef = useRef<() => void>(() => {});
 
   /* ---- animation loop: move asteroids ---- */
   useEffect(() => {
@@ -305,6 +361,25 @@ export function BlastGame({ onBack }: BlastGameProps) {
     }
   }, [questionIdx, currentLevel, currentLevelIdx, totalCorrect]);
 
+  // Keep ref in sync so the timeout effect can use it
+  advanceRef.current = advanceQuestion;
+
+  // Handle timeout (time ran out)
+  useEffect(() => {
+    if (timeLeft === 0 && gamePhase === "playing" && !lockedRef.current) {
+      lockedRef.current = true;
+      playUncheck();
+      setStreak(0);
+      setTotalAnswered((prev) => prev + 1);
+      setScore((prev) => Math.max(0, prev + POINTS_WRONG));
+
+      setTimeout(() => {
+        lockedRef.current = false;
+        advanceRef.current();
+      }, 400);
+    }
+  }, [timeLeft, gamePhase]);
+
   /* ---- proceed to next level ---- */
   const startNextLevel = useCallback(() => {
     playClick();
@@ -325,7 +400,8 @@ export function BlastGame({ onBack }: BlastGameProps) {
       lockedRef.current = true;
 
       if (asteroid.isCorrect) {
-        // Correct!
+        // Correct! — stop the countdown
+        if (timerRef.current) clearInterval(timerRef.current);
         playCheckOff();
         const points = Math.round(POINTS_CORRECT * multiplier);
         setScore((prev) => prev + points);
@@ -421,7 +497,7 @@ export function BlastGame({ onBack }: BlastGameProps) {
             Blast
           </h2>
           <p className="text-xs text-muted-foreground">
-            Shoot the matching term before it escapes!
+            Blast the correct definition before it escapes!
           </p>
         </div>
       </div>
@@ -437,8 +513,8 @@ export function BlastGame({ onBack }: BlastGameProps) {
               Ready to Blast?
             </h3>
             <p className="mx-auto mt-2 max-w-xs text-sm text-white/60">
-              A definition appears at the top. Click the asteroid with the
-              matching term. 3 levels, 15 questions. Go!
+              A term appears at the top. Click the asteroid with the correct
+              definition. 3 levels, 15 questions. Go!
             </p>
           </div>
           <div className="flex justify-center gap-3">
@@ -517,23 +593,44 @@ export function BlastGame({ onBack }: BlastGameProps) {
             </div>
           </div>
 
-          {/* Progress bar */}
-          <div className="h-2 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-datefix-blue via-datefix-pink to-datefix-gold transition-all duration-500"
-              style={{
-                width: `${(globalQuestionIdx / totalQuestions) * 100}%`,
-              }}
-            />
+          {/* Countdown timer bar */}
+          <div className="relative">
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all duration-1000 ease-linear",
+                  timeLeft <= 3
+                    ? "bg-red-500"
+                    : timeLeft <= 5
+                      ? "bg-datefix-gold"
+                      : "bg-gradient-to-r from-datefix-blue via-datefix-pink to-datefix-gold",
+                )}
+                style={{
+                  width: `${(timeLeft / currentLevel.timePerQuestion) * 100}%`,
+                }}
+              />
+            </div>
+            <span
+              className={cn(
+                "absolute -top-0.5 right-0 font-mono text-sm font-extrabold tabular-nums",
+                timeLeft <= 3
+                  ? "text-red-400 animate-pulse"
+                  : timeLeft <= 5
+                    ? "text-datefix-gold"
+                    : "text-muted-foreground",
+              )}
+            >
+              {timeLeft}
+            </span>
           </div>
 
-          {/* Prompt bar: shows definition */}
+          {/* Prompt bar: shows the term */}
           <div className="rounded-2xl border border-datefix-pink/20 bg-gradient-to-r from-datefix-pink/5 to-datefix-blue/5 px-5 py-4">
             <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-datefix-pink/70">
-              Find the matching term
+              Find the correct definition
             </p>
-            <p className="text-sm font-semibold leading-relaxed text-foreground">
-              {currentQuestion.answer}
+            <p className="text-center text-xl font-extrabold leading-relaxed text-foreground">
+              {currentQuestion.term}
             </p>
           </div>
 
@@ -596,7 +693,7 @@ export function BlastGame({ onBack }: BlastGameProps) {
                 >
                   <span
                     className={cn(
-                      "line-clamp-3 text-[10px] leading-tight",
+                      "line-clamp-3 text-[11px] leading-tight sm:text-xs",
                       isCorrect || isFading
                         ? "text-white"
                         : isWrong

@@ -61,13 +61,13 @@ function buildTiles(): Tile[] {
       uid: `q-${card.id}`,
       cardId: card.id,
       side: "question",
-      text: card.question,
+      text: card.term,
     });
     tiles.push({
       uid: `a-${card.id}`,
       cardId: card.id,
       side: "answer",
-      text: card.answer,
+      text: card.shortDef,
     });
   }
   return shuffle(tiles);
@@ -309,7 +309,7 @@ export function MatchGame({ onBack }: MatchGameProps) {
                   }
                 `}
               >
-                {tile.side === "question" ? "Q" : "A"}
+                {tile.side === "question" ? "T" : "D"}
               </span>
             </button>
           );

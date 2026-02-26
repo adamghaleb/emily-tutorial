@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { ChatMessage as ChatMessageType } from "@/types";
 import { ChatMessage, TypingIndicator } from "@/components/chat/chat-message";
 import { ChatInput } from "@/components/chat/chat-input";
-import { getResponse } from "@/lib/chat-engine";
 import { playSend, playReceive } from "@/lib/sounds";
 import { Sparkles } from "lucide-react";
 
@@ -12,8 +11,58 @@ const WELCOME_MESSAGE: ChatMessageType = {
   id: "welcome",
   role: "assistant",
   content:
-    "Hey Emily! 👋 I'm Job Bot — your personal guide to landing this job GUARANTEED. Ask me anything about GitHub, Claude Code, the datefix-demo project, or how things work. No question is too basic — we're getting you this job!",
+    "Hey Emily! I'm Job Bot — your personal guide to landing this job GUARANTEED. Ask me anything about GitHub, Claude Code, the datefix-demo project, or how things work. No question is too basic — we're getting you this job!",
 };
+
+const MAX_RETRIES = 3;
+const INITIAL_DELAY = 1000;
+
+async function fetchWithRetry(
+  messages: { role: string; content: string }[],
+): Promise<string> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages }),
+      });
+
+      if (
+        !res.ok &&
+        res.status >= 400 &&
+        res.status < 500 &&
+        res.status !== 429
+      ) {
+        // Don't retry 4xx errors (except 429)
+        const data = await res.json().catch(() => ({}));
+        return (
+          data.response ?? "Hmm, something went sideways. Try asking again!"
+        );
+      }
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      return data.response;
+    } catch (err: unknown) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+
+      if (attempt < MAX_RETRIES - 1) {
+        const delay =
+          INITIAL_DELAY * Math.pow(2, attempt) * (0.5 + Math.random() * 0.5);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  console.error("Chat fetch failed after retries:", lastError);
+  return "Oops! I'm having trouble connecting right now. Try again in a moment!";
+}
 
 export function ChatTab() {
   const [messages, setMessages] = useState<ChatMessageType[]>([
@@ -32,29 +81,34 @@ export function ChatTab() {
     scrollToBottom();
   }, [messages, isTyping, scrollToBottom]);
 
-  const handleSend = (content: string) => {
+  const handleSend = async (content: string) => {
     const userMessage: ChatMessageType = {
       id: `user-${Date.now()}`,
       role: "user",
       content,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setIsTyping(true);
     playSend();
 
-    const delay = 500 + Math.random() * 300;
-    setTimeout(() => {
-      const response = getResponse(content);
-      const assistantMessage: ChatMessageType = {
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
-        content: response,
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-      setIsTyping(false);
-      playReceive();
-    }, delay);
+    // Build conversation history for the API (skip the welcome message id stuff)
+    const apiMessages = updatedMessages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    const response = await fetchWithRetry(apiMessages);
+
+    const assistantMessage: ChatMessageType = {
+      id: `assistant-${Date.now()}`,
+      role: "assistant",
+      content: response,
+    };
+    setMessages((prev) => [...prev, assistantMessage]);
+    setIsTyping(false);
+    playReceive();
   };
 
   return (
@@ -72,7 +126,7 @@ export function ChatTab() {
           Job Bot
         </h2>
         <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-          Your personal guide to landing this job. Ask me anything!
+          Powered by Claude — ask me anything!
         </p>
       </div>
 

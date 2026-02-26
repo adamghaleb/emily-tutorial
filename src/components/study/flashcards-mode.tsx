@@ -155,13 +155,11 @@ export function FlashcardsMode({ onBack }: FlashcardsModeProps) {
                   >
                     {style.emoji} {card.category}
                   </span>
-                  <span className="text-xs text-muted-foreground/60">
-                    Question
-                  </span>
+                  <span className="text-xs text-muted-foreground/60">Term</span>
                 </div>
 
-                <p className="text-center text-xl font-bold leading-snug text-foreground">
-                  {card.question}
+                <p className="text-center text-2xl font-extrabold leading-snug text-foreground">
+                  {card.term}
                 </p>
 
                 <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground/50">
@@ -182,7 +180,7 @@ export function FlashcardsMode({ onBack }: FlashcardsModeProps) {
                     {style.emoji} {card.category}
                   </span>
                   <span className="text-xs font-semibold text-datefix-green">
-                    Answer
+                    Definition
                   </span>
                 </div>
 

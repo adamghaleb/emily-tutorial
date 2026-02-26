@@ -15,8 +15,16 @@ export interface FaqEntry {
 
 export interface QuizCard {
   id: number;
+  /** Full question (used in Learn, Test, Flashcards) */
   question: string;
+  /** Full answer / definition */
   answer: string;
+  /** Short term for Match game tiles & Blast asteroids (e.g. "GitHub") */
+  term: string;
+  /** Short definition for Match game tiles & Blast asteroids */
+  shortDef: string;
+  /** 3 plausible wrong answers for multiple-choice modes */
+  distractors: [string, string, string];
   category: "github" | "claude" | "datefix" | "terminal" | "vercel";
 }
 

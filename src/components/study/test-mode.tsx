@@ -20,11 +20,9 @@ function shuffle<T>(arr: T[]): T[] {
   return copy;
 }
 
-/** Pick 3 random wrong answers from all cards, excluding the correct one. */
-function pickDistractors(correct: QuizCard, all: QuizCard[]): string[] {
-  const pool = all.filter((c) => c.id !== correct.id);
-  const shuffled = shuffle(pool);
-  return shuffled.slice(0, 3).map((c) => c.answer);
+/** Use the card's built-in distractors */
+function getDistractors(card: QuizCard): string[] {
+  return [...card.distractors];
 }
 
 function getResultEmoji(pct: number): string {
@@ -57,7 +55,7 @@ export function TestMode({ onBack }: TestModeProps) {
   const questions: TestQuestion[] = useMemo(() => {
     const shuffledCards = shuffle(quizCards);
     return shuffledCards.map((card) => {
-      const distractors = pickDistractors(card, quizCards);
+      const distractors = getDistractors(card);
       const options = shuffle([card.answer, ...distractors]);
       return { card, options };
     });
@@ -227,9 +225,9 @@ export function TestMode({ onBack }: TestModeProps) {
                 )}
               </div>
 
-              {/* Definition (answer shown as prompt) */}
+              {/* Question prompt */}
               <p className="mb-4 text-sm font-semibold leading-relaxed text-foreground">
-                {q.card.answer}
+                {q.card.question}
               </p>
 
               {/* Options grid */}

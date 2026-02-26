@@ -261,12 +261,8 @@ function buildQuizState(usedIds: Set<number>): QuizState {
   const shuffled = shuffle(pool);
   const card = shuffled[0];
 
-  // Build 4 options: correct answer + 3 distractors
-  const distractors = shuffle(quizCards.filter((c) => c.id !== card.id))
-    .slice(0, 3)
-    .map((c) => c.answer);
-
-  const options = shuffle([card.answer, ...distractors]);
+  // Build 4 options: correct answer + 3 built-in distractors
+  const options = shuffle([card.answer, ...card.distractors]);
 
   return {
     questionIndex: card.id,
