@@ -1,6 +1,13 @@
 "use client";
 
-import { useReducer, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useReducer,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+} from "react";
 import { quizCards } from "@/data/quiz-cards";
 import {
   playClick,
@@ -523,11 +530,13 @@ function PiecePreview({
   isSelected,
   onClick,
   onDragStart,
+  onTouchStart,
 }: {
   piece: Piece;
   isSelected: boolean;
   onClick: () => void;
   onDragStart: (pieceId: string) => void;
+  onTouchStart: (pieceId: string, e: React.TouchEvent) => void;
 }) {
   const maxRow = Math.max(...piece.shape.map(([r]) => r)) + 1;
   const maxCol = Math.max(...piece.shape.map(([, c]) => c)) + 1;
@@ -541,9 +550,10 @@ function PiecePreview({
         e.dataTransfer.effectAllowed = "move";
         onDragStart(piece.id);
       }}
+      onTouchStart={(e) => onTouchStart(piece.id, e)}
       onClick={onClick}
       className={cn(
-        "relative flex cursor-grab flex-col items-center gap-1 rounded-xl border-2 p-3 transition-all duration-150 active:cursor-grabbing",
+        "relative flex cursor-grab flex-col items-center gap-1 rounded-xl border-2 p-3 transition-all duration-150 touch-none active:cursor-grabbing",
         isSelected
           ? "scale-105 border-datefix-blue bg-datefix-blue/10 shadow-lg ring-2 ring-datefix-blue/30"
           : piece.isPenalty
@@ -596,6 +606,14 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
   const [hoverCells, setHoverCells] = useState<Set<string>>(new Set());
   const [hoverValid, setHoverValid] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+
+  // Touch drag state
+  const [touchDragPos, setTouchDragPos] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const touchDragPieceRef = useRef<string | null>(null);
+  const gridContainerRef = useRef<HTMLDivElement>(null);
 
   const {
     grid,
@@ -685,6 +703,86 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
       dispatch({ type: "SELECT_PIECE", pieceId });
     },
     [phase],
+  );
+
+  /* ---- Touch point → grid cell ---- */
+  const getCellFromPoint = useCallback(
+    (clientX: number, clientY: number): { row: number; col: number } | null => {
+      const container = gridContainerRef.current;
+      if (!container) return null;
+      const rect = container.getBoundingClientRect();
+      // Each cell is 40px + 3px gap, grid has 2px padding
+      const cellSize = 40;
+      const gap = 3;
+      const pad = 8; // p-2 = 8px
+      const x = clientX - rect.left - pad;
+      const y = clientY - rect.top - pad;
+      const col = Math.floor(x / (cellSize + gap));
+      const row = Math.floor(y / (cellSize + gap));
+      if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE)
+        return null;
+      return { row, col };
+    },
+    [],
+  );
+
+  /* ---- Touch drag handlers ---- */
+  const handleTouchStart = useCallback(
+    (pieceId: string, e: React.TouchEvent) => {
+      if (phase !== "playing") return;
+      e.preventDefault();
+      touchDragPieceRef.current = pieceId;
+      dispatch({ type: "SELECT_PIECE", pieceId });
+      const touch = e.touches[0];
+      setTouchDragPos({ x: touch.clientX, y: touch.clientY });
+    },
+    [phase],
+  );
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!touchDragPieceRef.current) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      setTouchDragPos({ x: touch.clientX, y: touch.clientY });
+
+      // Highlight the cell under the finger
+      const cell = getCellFromPoint(touch.clientX, touch.clientY);
+      if (cell) {
+        handleCellHover(cell.row, cell.col);
+      } else {
+        setHoverCells(new Set());
+      }
+    },
+    [getCellFromPoint, handleCellHover],
+  );
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      const pieceId = touchDragPieceRef.current;
+      if (!pieceId) return;
+
+      const touch = e.changedTouches[0];
+      const cell = getCellFromPoint(touch.clientX, touch.clientY);
+
+      if (cell) {
+        const piece = pieces.find((p) => p.id === pieceId);
+        if (piece && canPlacePiece(grid, piece, cell.row, cell.col)) {
+          playClick();
+          dispatch({
+            type: "PLACE_PIECE",
+            row: cell.row,
+            col: cell.col,
+            pieceId,
+          });
+        }
+      }
+
+      touchDragPieceRef.current = null;
+      setTouchDragPos(null);
+      setHoverCells(new Set());
+    },
+    [pieces, grid, getCellFromPoint],
   );
 
   /* ---- Drag-and-drop onto grid ---- */
@@ -814,8 +912,11 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
         <>
           {/* Grid */}
           <div
+            ref={gridContainerRef}
             className="mx-auto w-fit rounded-2xl border border-border/50 bg-card p-2"
             onMouseLeave={handleGridLeave}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           >
             <div
               className="grid gap-[3px]"
@@ -863,6 +964,59 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
             </div>
           </div>
 
+          {/* Touch drag ghost piece */}
+          {touchDragPos && selectedPiece && (
+            <div
+              className="pointer-events-none fixed z-50 opacity-70"
+              style={{
+                left: touchDragPos.x - 20,
+                top: touchDragPos.y - 40,
+              }}
+            >
+              <div
+                className="grid gap-0.5"
+                style={{
+                  gridTemplateColumns: `repeat(${Math.max(...selectedPiece.shape.map(([, c]) => c)) + 1}, 20px)`,
+                  gridTemplateRows: `repeat(${Math.max(...selectedPiece.shape.map(([r]) => r)) + 1}, 20px)`,
+                }}
+              >
+                {Array.from(
+                  {
+                    length:
+                      Math.max(...selectedPiece.shape.map(([r]) => r)) + 1,
+                  },
+                  (_, r) =>
+                    Array.from(
+                      {
+                        length:
+                          Math.max(...selectedPiece.shape.map(([, c]) => c)) +
+                          1,
+                      },
+                      (_, c) => {
+                        const filled = selectedPiece.shape.some(
+                          ([sr, sc]) => sr === r && sc === c,
+                        );
+                        return (
+                          <div
+                            key={`${r}-${c}`}
+                            className={cn(
+                              "h-5 w-5 rounded-sm",
+                              filled ? "shadow-md" : "bg-transparent",
+                            )}
+                            style={
+                              filled
+                                ? { backgroundColor: selectedPiece.color }
+                                : undefined
+                            }
+                          />
+                        );
+                      },
+                    ),
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Piece tray */}
           <div className="space-y-2">
             <p className="text-center text-xs font-semibold text-muted-foreground">
@@ -878,6 +1032,7 @@ export function BlocksGame({ onBack }: BlocksGameProps) {
                   isSelected={piece.id === selectedPieceId}
                   onClick={() => handlePieceSelect(piece.id)}
                   onDragStart={handleDragStart}
+                  onTouchStart={handleTouchStart}
                 />
               ))}
               {pieces.length === 0 && (
