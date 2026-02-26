@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   BookOpen,
   MessageCircle,
   Brain,
   Sparkles,
   ArrowLeft,
+  Heart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { playClick } from "@/lib/sounds";
@@ -19,28 +21,24 @@ type Tab = "tutorial" | "chat" | "quiz";
 const tabs: {
   id: Tab;
   label: string;
-  emoji: string;
   icon: React.ReactNode;
   color: string;
 }[] = [
   {
     id: "tutorial",
     label: "Learn",
-    emoji: "📚",
     icon: <BookOpen className="h-4 w-4" />,
     color: "text-datefix-blue",
   },
   {
     id: "chat",
     label: "Ask",
-    emoji: "💬",
     icon: <MessageCircle className="h-4 w-4" />,
     color: "text-datefix-pink",
   },
   {
     id: "quiz",
     label: "Study",
-    emoji: "🎮",
     icon: <Brain className="h-4 w-4" />,
     color: "text-datefix-gold",
   },
@@ -52,11 +50,8 @@ const tabColors: Record<Tab, string> = {
   quiz: "border-datefix-gold text-datefix-gold",
 };
 
-interface AppShellProps {
-  onBack: () => void;
-}
-
-export function AppShell({ onBack }: AppShellProps) {
+export function AppShell() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("tutorial");
 
   useEffect(() => {
@@ -77,7 +72,7 @@ export function AppShell({ onBack }: AppShellProps) {
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <button
-              onClick={onBack}
+              onClick={() => router.push("/")}
               className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -89,8 +84,9 @@ export function AppShell({ onBack }: AppShellProps) {
               </h1>
             </div>
           </div>
-          <span className="rounded-full bg-datefix-pink/10 px-3 py-1 text-xs font-medium text-datefix-pink">
-            by Adam
+          <span className="flex items-center gap-1.5 rounded-full bg-datefix-pink/10 px-3 py-1 text-xs font-medium text-datefix-pink">
+            by Adam, with
+            <Heart className="h-3 w-3 fill-datefix-pink text-datefix-pink" />
           </span>
         </div>
 
@@ -111,7 +107,7 @@ export function AppShell({ onBack }: AppShellProps) {
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <span className="text-base">{tab.emoji}</span>
+                {tab.icon}
                 {tab.label}
               </button>
             ))}

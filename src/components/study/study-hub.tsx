@@ -22,7 +22,6 @@ export type StudyMode =
 const modes: {
   id: StudyMode;
   label: string;
-  emoji: string;
   icon: React.ReactNode;
   color: string;
   bg: string;
@@ -31,7 +30,6 @@ const modes: {
   {
     id: "flashcards",
     label: "Flashcards",
-    emoji: "🃏",
     icon: <Layers className="h-6 w-6" />,
     color: "text-datefix-blue",
     bg: "bg-datefix-blue/10 border-datefix-blue/20 hover:border-datefix-blue/40",
@@ -40,7 +38,6 @@ const modes: {
   {
     id: "learn",
     label: "Learn",
-    emoji: "🎯",
     icon: <RefreshCw className="h-6 w-6" />,
     color: "text-datefix-pink",
     bg: "bg-datefix-pink/10 border-datefix-pink/20 hover:border-datefix-pink/40",
@@ -49,7 +46,6 @@ const modes: {
   {
     id: "test",
     label: "Test",
-    emoji: "📝",
     icon: <FileText className="h-6 w-6" />,
     color: "text-datefix-green",
     bg: "bg-datefix-green/10 border-datefix-green/20 hover:border-datefix-green/40",
@@ -58,7 +54,6 @@ const modes: {
   {
     id: "blocks",
     label: "Blocks",
-    emoji: "🧱",
     icon: <LayoutGrid className="h-6 w-6" />,
     color: "text-datefix-gold",
     bg: "bg-datefix-gold/10 border-datefix-gold/20 hover:border-datefix-gold/40",
@@ -67,7 +62,6 @@ const modes: {
   {
     id: "blast",
     label: "Blast",
-    emoji: "💥",
     icon: <Rocket className="h-6 w-6" />,
     color: "text-datefix-blue",
     bg: "bg-datefix-blue/10 border-datefix-blue/20 hover:border-datefix-blue/40",
@@ -76,7 +70,6 @@ const modes: {
   {
     id: "match",
     label: "Match",
-    emoji: "🧩",
     icon: <Grid3X3 className="h-6 w-6" />,
     color: "text-datefix-pink",
     bg: "bg-datefix-pink/10 border-datefix-pink/20 hover:border-datefix-pink/40",
@@ -117,7 +110,7 @@ export function StudyHub({ onSelect }: StudyHubProps) {
             </div>
             <div className="text-center">
               <span className="text-sm font-bold text-foreground">
-                {mode.emoji} {mode.label}
+                {mode.label}
               </span>
               <p className="mt-0.5 text-[11px] text-muted-foreground">
                 {mode.description}

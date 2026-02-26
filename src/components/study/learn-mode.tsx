@@ -3,7 +3,15 @@
 import { useState, useMemo, useCallback } from "react";
 import { quizCards } from "@/data/quiz-cards";
 import { playClick, playCheckOff, playUncheck } from "@/lib/sounds";
-import { ArrowLeft, RotateCcw, Trophy } from "lucide-react";
+import {
+  ArrowLeft,
+  RotateCcw,
+  Trophy,
+  Flame,
+  Zap,
+  BookOpen,
+  Sprout,
+} from "lucide-react";
 
 interface LearnModeProps {
   onBack: () => void;
@@ -107,14 +115,33 @@ export function LearnMode({ onBack }: LearnModeProps) {
     ? 100
     : Math.round((currentIndex / total) * 100);
 
-  // Emoji reaction based on score
+  // Icon reaction based on score
   const getReaction = () => {
     const pct = score / total;
-    if (pct === 1) return { emoji: "🏆", label: "Perfect score!" };
-    if (pct >= 0.8) return { emoji: "🔥", label: "Amazing work!" };
-    if (pct >= 0.6) return { emoji: "💪", label: "Solid effort!" };
-    if (pct >= 0.4) return { emoji: "📚", label: "Keep studying!" };
-    return { emoji: "🌱", label: "Room to grow!" };
+    if (pct === 1)
+      return {
+        icon: <Trophy className="h-12 w-12 text-datefix-gold" />,
+        label: "Perfect score!",
+      };
+    if (pct >= 0.8)
+      return {
+        icon: <Flame className="h-12 w-12 text-datefix-gold" />,
+        label: "Amazing work!",
+      };
+    if (pct >= 0.6)
+      return {
+        icon: <Zap className="h-12 w-12 text-datefix-blue" />,
+        label: "Solid effort!",
+      };
+    if (pct >= 0.4)
+      return {
+        icon: <BookOpen className="h-12 w-12 text-datefix-pink" />,
+        label: "Keep studying!",
+      };
+    return {
+      icon: <Sprout className="h-12 w-12 text-datefix-green" />,
+      label: "Room to grow!",
+    };
   };
 
   // Option button styling per state
@@ -158,7 +185,7 @@ export function LearnMode({ onBack }: LearnModeProps) {
 
         {/* Results card */}
         <div className="animate-bounce-in flex w-full flex-col items-center gap-6 rounded-2xl border bg-card p-8 text-center">
-          <div className="text-6xl">{reaction.emoji}</div>
+          <div>{reaction.icon}</div>
           <div>
             <h2 className="text-2xl font-extrabold text-foreground">
               {reaction.label}

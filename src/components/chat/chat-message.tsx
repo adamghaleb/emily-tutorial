@@ -2,6 +2,7 @@
 
 import { ChatMessage as ChatMessageType } from "@/types";
 import { cn } from "@/lib/utils";
+import { User, Sparkles } from "lucide-react";
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -12,16 +13,20 @@ export function ChatMessage({ message }: ChatMessageProps) {
 
   return (
     <div className={cn("flex gap-3", isUser ? "flex-row-reverse" : "flex-row")}>
-      {/* Avatar — emoji style */}
+      {/* Avatar */}
       <div
         className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg",
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
           isUser
-            ? "bg-datefix-pink/15"
-            : "bg-gradient-to-br from-datefix-blue/20 to-datefix-pink/10",
+            ? "bg-datefix-pink/15 text-datefix-pink"
+            : "bg-gradient-to-br from-datefix-blue/20 to-datefix-pink/10 text-datefix-blue",
         )}
       >
-        {isUser ? "👩" : "🤖"}
+        {isUser ? (
+          <User className="h-4 w-4" />
+        ) : (
+          <Sparkles className="h-4 w-4" />
+        )}
       </div>
 
       {/* Bubble */}
@@ -42,8 +47,8 @@ export function ChatMessage({ message }: ChatMessageProps) {
 export function TypingIndicator() {
   return (
     <div className="flex gap-3">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-datefix-blue/20 to-datefix-pink/10 text-lg">
-        🤖
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-datefix-blue/20 to-datefix-pink/10 text-datefix-blue">
+        <Sparkles className="h-4 w-4" />
       </div>
       <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-sm border border-border/50 bg-card px-4 py-3">
         <span className="typing-dot h-2 w-2 rounded-full bg-datefix-pink/60" />

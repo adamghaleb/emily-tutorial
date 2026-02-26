@@ -3,41 +3,51 @@
 import { QuizCard } from "@/types";
 import { cn } from "@/lib/utils";
 import { playFlip } from "@/lib/sounds";
-import { Check } from "lucide-react";
+import {
+  Check,
+  Github,
+  Sparkles,
+  Package,
+  Terminal,
+  Rocket,
+} from "lucide-react";
+
+const categoryIcons: Record<QuizCard["category"], React.ReactNode> = {
+  github: <Github className="h-3 w-3" />,
+  claude: <Sparkles className="h-3 w-3" />,
+  datefix: <Package className="h-3 w-3" />,
+  terminal: <Terminal className="h-3 w-3" />,
+  vercel: <Rocket className="h-3 w-3" />,
+};
 
 const categoryStyles: Record<
   QuizCard["category"],
-  { badge: string; border: string; glow: string; emoji: string }
+  { badge: string; border: string; glow: string }
 > = {
   github: {
     badge: "bg-datefix-blue/15 text-datefix-blue",
     border: "border-datefix-blue/20",
     glow: "shadow-datefix-blue/10",
-    emoji: "🐙",
   },
   claude: {
     badge: "bg-datefix-pink/15 text-datefix-pink",
     border: "border-datefix-pink/20",
     glow: "shadow-datefix-pink/10",
-    emoji: "🤖",
   },
   datefix: {
     badge: "bg-datefix-gold/15 text-datefix-gold",
     border: "border-datefix-gold/20",
     glow: "shadow-datefix-gold/10",
-    emoji: "📦",
   },
   terminal: {
     badge: "bg-datefix-green/15 text-datefix-green",
     border: "border-datefix-green/20",
     glow: "shadow-datefix-green/10",
-    emoji: "💻",
   },
   vercel: {
     badge: "bg-datefix-blue/15 text-datefix-blue",
     border: "border-datefix-blue/20",
     glow: "shadow-datefix-blue/10",
-    emoji: "🚀",
   },
 };
 
@@ -79,7 +89,7 @@ export function Flashcard({ card, flipped, onFlip }: FlashcardProps) {
                 style.badge,
               )}
             >
-              {style.emoji} {card.category}
+              {categoryIcons[card.category]} {card.category}
             </span>
             <span className="text-xs text-muted-foreground/50">tap me!</span>
           </div>
@@ -101,7 +111,7 @@ export function Flashcard({ card, flipped, onFlip }: FlashcardProps) {
                 style.badge,
               )}
             >
-              {style.emoji} {card.category}
+              {categoryIcons[card.category]} {card.category}
             </span>
             <div className="flex h-6 w-6 items-center justify-center rounded-full bg-datefix-green/20">
               <Check className="h-3.5 w-3.5 text-datefix-green" />

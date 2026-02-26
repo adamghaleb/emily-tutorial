@@ -1,7 +1,16 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  XCircle,
+  Trophy,
+  Flame,
+  Zap,
+  BookOpen,
+  Sprout,
+} from "lucide-react";
 import { quizCards } from "@/data/quiz-cards";
 import { playClick, playCelebration } from "@/lib/sounds";
 import { Confetti } from "@/components/confetti";
@@ -25,12 +34,12 @@ function getDistractors(card: QuizCard): string[] {
   return [...card.distractors];
 }
 
-function getResultEmoji(pct: number): string {
-  if (pct === 100) return "🎉";
-  if (pct >= 80) return "🔥";
-  if (pct >= 60) return "💪";
-  if (pct >= 40) return "📚";
-  return "🤔";
+function getResultIcon(pct: number): React.ReactNode {
+  if (pct === 100) return <Trophy className="h-10 w-10 text-datefix-gold" />;
+  if (pct >= 80) return <Flame className="h-10 w-10 text-datefix-gold" />;
+  if (pct >= 60) return <Zap className="h-10 w-10 text-datefix-blue" />;
+  if (pct >= 40) return <BookOpen className="h-10 w-10 text-datefix-pink" />;
+  return <Sprout className="h-10 w-10 text-datefix-green" />;
 }
 
 /* ------------------------------------------------------------------ */
@@ -172,7 +181,7 @@ export function TestMode({ onBack }: TestModeProps) {
       {/* Results banner */}
       {submitted && (
         <div className="animate-slide-up rounded-2xl border border-datefix-blue/20 bg-datefix-blue/5 p-5 text-center">
-          <p className="text-4xl">{getResultEmoji(pct)}</p>
+          <div>{getResultIcon(pct)}</div>
           <p className="mt-2 text-2xl font-extrabold text-foreground">
             {score} / {totalQuestions}
           </p>

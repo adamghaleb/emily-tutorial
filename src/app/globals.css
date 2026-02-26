@@ -261,6 +261,22 @@
   }
 }
 
+/* Mouse sparkle trail */
+@keyframes sparkle-trail {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0) translateY(12px);
+  }
+}
+
+.animate-sparkle-trail {
+  animation: sparkle-trail 0.6s ease-out forwards;
+}
+
 /* Confetti burst */
 @keyframes confetti-fall {
   0% {

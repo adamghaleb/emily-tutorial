@@ -124,7 +124,7 @@ export const faqResponses: FaqEntry[] = [
   {
     keywords: ["thank", "thanks", "awesome", "great", "cool"],
     response:
-      "You're welcome! You're doing great. Remember, everyone starts somewhere and the fact that you're learning this stuff puts you ahead. Keep going! 💪",
+      "You're welcome! You're doing great. Remember, everyone starts somewhere and the fact that you're learning this stuff puts you ahead. Keep going!",
   },
 ];
 

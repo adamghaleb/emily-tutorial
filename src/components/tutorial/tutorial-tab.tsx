@@ -6,7 +6,7 @@ import { TutorialStep } from "@/components/tutorial/tutorial-step";
 import { BuildGuide } from "@/components/tutorial/build-guide";
 import { Confetti } from "@/components/confetti";
 import { playCheckOff, playUncheck, playCelebration } from "@/lib/sounds";
-import { PartyPopper, Sparkles, Trophy } from "lucide-react";
+import { PartyPopper, Sparkles, Trophy, Flame, Zap, Star } from "lucide-react";
 
 const STORAGE_KEY = "emily-tutorial-completed";
 const TOTAL = tutorialSteps.length;
@@ -112,17 +112,15 @@ export function TutorialTab() {
           <span className="text-sm font-bold text-datefix-green">
             {doneCount}/{TOTAL} completed
           </span>
-          <span className="text-sm">
-            {allDone
-              ? "🎉"
-              : doneCount >= 7
-                ? "🔥"
-                : doneCount >= 3
-                  ? "💪"
-                  : doneCount > 0
-                    ? "✨"
-                    : ""}
-          </span>
+          {allDone ? (
+            <Trophy className="h-4 w-4 text-datefix-gold" />
+          ) : doneCount >= 7 ? (
+            <Flame className="h-4 w-4 text-datefix-gold" />
+          ) : doneCount >= 3 ? (
+            <Zap className="h-4 w-4 text-datefix-blue" />
+          ) : doneCount > 0 ? (
+            <Star className="h-4 w-4 text-datefix-pink" />
+          ) : null}
         </div>
       </div>
 
@@ -154,7 +152,7 @@ export function TutorialTab() {
         )}
         <p className="text-xl font-extrabold text-foreground">
           {allDone
-            ? "ALL DONE! The job is YOURS! 🎉"
+            ? "ALL DONE! The job is YOURS!"
             : "That's it! You're officially ready!"}
         </p>
         <p className="mt-2 text-sm text-muted-foreground">

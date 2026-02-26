@@ -5,17 +5,32 @@ import { quizCards } from "@/data/quiz-cards";
 import { QuizCard } from "@/types";
 import { playFlip, playClick } from "@/lib/sounds";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ArrowRight, ChevronLeft, Shuffle } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  ChevronLeft,
+  Shuffle,
+  Github,
+  Sparkles,
+  Package,
+  Terminal,
+  Rocket,
+} from "lucide-react";
 
-const categoryStyles: Record<
-  QuizCard["category"],
-  { badge: string; emoji: string }
-> = {
-  github: { badge: "bg-datefix-blue/15 text-datefix-blue", emoji: "🐙" },
-  claude: { badge: "bg-datefix-pink/15 text-datefix-pink", emoji: "🤖" },
-  datefix: { badge: "bg-datefix-gold/15 text-datefix-gold", emoji: "📦" },
-  terminal: { badge: "bg-datefix-green/15 text-datefix-green", emoji: "💻" },
-  vercel: { badge: "bg-datefix-blue/15 text-datefix-blue", emoji: "🚀" },
+const categoryIcons: Record<QuizCard["category"], React.ReactNode> = {
+  github: <Github className="h-3 w-3" />,
+  claude: <Sparkles className="h-3 w-3" />,
+  datefix: <Package className="h-3 w-3" />,
+  terminal: <Terminal className="h-3 w-3" />,
+  vercel: <Rocket className="h-3 w-3" />,
+};
+
+const categoryStyles: Record<QuizCard["category"], { badge: string }> = {
+  github: { badge: "bg-datefix-blue/15 text-datefix-blue" },
+  claude: { badge: "bg-datefix-pink/15 text-datefix-pink" },
+  datefix: { badge: "bg-datefix-gold/15 text-datefix-gold" },
+  terminal: { badge: "bg-datefix-green/15 text-datefix-green" },
+  vercel: { badge: "bg-datefix-blue/15 text-datefix-blue" },
 };
 
 interface FlashcardsModeProps {
@@ -153,7 +168,7 @@ export function FlashcardsMode({ onBack }: FlashcardsModeProps) {
                       style.badge,
                     )}
                   >
-                    {style.emoji} {card.category}
+                    {categoryIcons[card.category]} {card.category}
                   </span>
                   <span className="text-xs text-muted-foreground/60">Term</span>
                 </div>
@@ -177,7 +192,7 @@ export function FlashcardsMode({ onBack }: FlashcardsModeProps) {
                       style.badge,
                     )}
                   >
-                    {style.emoji} {card.category}
+                    {categoryIcons[card.category]} {card.category}
                   </span>
                   <span className="text-xs font-semibold text-datefix-green">
                     Definition

@@ -1,7 +1,15 @@
 "use client";
 
 import { playClick } from "@/lib/sounds";
-import { ArrowLeft, ExternalLink, FileText } from "lucide-react";
+import {
+  ArrowLeft,
+  ExternalLink,
+  FileText,
+  Pin,
+  Lightbulb,
+  Target,
+  Wrench,
+} from "lucide-react";
 import Image from "next/image";
 
 interface BuildGuideProps {
@@ -159,7 +167,7 @@ export function BuildGuide({ onBack }: BuildGuideProps) {
           Because in the web demo, each image is positioned relative to a common
           coordinate system. Mismatched sizes = misaligned content.
         </p>
-        <Callout emoji="💡">
+        <Callout icon={<Lightbulb className="h-4 w-4" />}>
           <Strong>The Overlap Layer Trick:</Strong> For dates and cinnamon, the
           ingredient partially overlaps the packet. Solution: split into a{" "}
           <Strong>bottom layer</Strong> (behind the packet) and a{" "}
@@ -230,7 +238,7 @@ export function BuildGuide({ onBack }: BuildGuideProps) {
             &amp; cinnamon only)
           </li>
         </ol>
-        <Callout emoji="🎯">
+        <Callout icon={<Target className="h-4 w-4" />}>
           A reference image overlay technique was used for alignment — the
           original AI image at 30% opacity served as &ldquo;tracing paper&rdquo;
           to position each layer precisely.
@@ -256,7 +264,7 @@ export function BuildGuide({ onBack }: BuildGuideProps) {
             paste back into code
           </li>
         </ul>
-        <Callout emoji="🔧">
+        <Callout icon={<Wrench className="h-4 w-4" />}>
           This &ldquo;visual tweaking &rarr; copy config &rarr; paste into
           code&rdquo; workflow was the core iteration loop for pixel-perfect
           results.
@@ -398,14 +406,16 @@ function Strong({ children }: { children: React.ReactNode }) {
 
 function Callout({
   children,
-  emoji = "📌",
+  icon,
 }: {
   children: React.ReactNode;
-  emoji?: string;
+  icon?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-datefix-gold/20 bg-datefix-gold/5 px-4 py-3">
-      <span className="mr-1.5">{emoji}</span>
+    <div className="flex gap-2 rounded-xl border border-datefix-gold/20 bg-datefix-gold/5 px-4 py-3">
+      <span className="mt-0.5 shrink-0 text-datefix-gold">
+        {icon ?? <Pin className="h-4 w-4" />}
+      </span>
       <span className="text-sm text-muted-foreground">{children}</span>
     </div>
   );

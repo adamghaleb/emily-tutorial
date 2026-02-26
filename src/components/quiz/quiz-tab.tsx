@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { playClick, playCelebration } from "@/lib/sounds";
 import { Confetti } from "@/components/confetti";
-import { Shuffle, RotateCcw, Sparkles, Trophy } from "lucide-react";
+import { Shuffle, RotateCcw, Sparkles, Trophy, Flame, Zap } from "lucide-react";
 
 export function QuizTab() {
   const [flippedIds, setFlippedIds] = useState<Set<number>>(new Set());
@@ -95,14 +95,14 @@ export function QuizTab() {
             {flippedIds.size} of {quizCards.length} revealed
           </span>
           <span className="font-bold text-datefix-gold">
-            {progress}%{" "}
-            {progress === 100
-              ? "🎉"
-              : progress >= 50
-                ? "🔥"
-                : progress > 0
-                  ? "💪"
-                  : ""}
+            {progress}%
+            {progress === 100 ? (
+              <Trophy className="ml-1 inline h-4 w-4" />
+            ) : progress >= 50 ? (
+              <Flame className="ml-1 inline h-4 w-4" />
+            ) : progress > 0 ? (
+              <Zap className="ml-1 inline h-4 w-4" />
+            ) : null}
           </span>
         </div>
         <Progress value={progress} className="h-2.5" />

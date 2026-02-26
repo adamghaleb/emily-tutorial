@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { playStart } from "@/lib/sounds";
 import { Sparkles, Heart, Rocket, Star, Zap, PartyPopper } from "lucide-react";
@@ -9,15 +9,46 @@ interface HeroProps {
   onStart: () => void;
 }
 
+/** Sparkle particle state */
+interface SparkleParticle {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  color: string;
+}
+
+const SPARKLE_COLORS = [
+  "rgba(148, 184, 242, 0.8)", // blue
+  "rgba(214, 132, 204, 0.8)", // pink
+  "rgba(224, 169, 88, 0.8)", // gold
+  "rgba(160, 199, 93, 0.8)", // green
+  "rgba(255, 255, 255, 0.6)", // white
+];
+
+let sparkleId = 0;
+
 export function Hero({ onStart }: HeroProps) {
   const blobRef = useRef<HTMLDivElement>(null);
   const iconRef = useRef<HTMLDivElement>(null);
+  const [fading, setFading] = useState(false);
+  const [sparkles, setSparkles] = useState<SparkleParticle[]>([]);
+  const lastSparkleTime = useRef(0);
+
+  // Clean up expired sparkles
+  useEffect(() => {
+    if (sparkles.length === 0) return;
+    const timer = setTimeout(() => {
+      setSparkles((prev) => prev.slice(-20));
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [sparkles]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const { clientX, clientY } = e;
     const cx = window.innerWidth / 2;
     const cy = window.innerHeight / 2;
-    const dx = (clientX - cx) / cx; // -1 to 1
+    const dx = (clientX - cx) / cx;
     const dy = (clientY - cy) / cy;
 
     if (blobRef.current) {
@@ -26,15 +57,53 @@ export function Hero({ onStart }: HeroProps) {
     if (iconRef.current) {
       iconRef.current.style.transform = `translate(${dx * -12}px, ${dy * -10}px)`;
     }
+
+    // Throttle sparkle creation to every 50ms
+    const now = Date.now();
+    if (now - lastSparkleTime.current < 50) return;
+    lastSparkleTime.current = now;
+
+    const particle: SparkleParticle = {
+      id: sparkleId++,
+      x: clientX,
+      y: clientY,
+      size: Math.random() * 6 + 3,
+      color: SPARKLE_COLORS[Math.floor(Math.random() * SPARKLE_COLORS.length)],
+    };
+
+    setSparkles((prev) => [...prev.slice(-30), particle]);
   }, []);
+
+  const handleStart = () => {
+    playStart();
+    setFading(true);
+    setTimeout(onStart, 500);
+  };
 
   return (
     <div
       onMouseMove={handleMouseMove}
-      className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-6"
+      className={`relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-6 transition-opacity duration-500 ${fading ? "opacity-0" : "opacity-100"}`}
     >
       {/* Rich layered background */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#1d1644] via-[#120e2e] to-[#0c0a17]" />
+
+      {/* Mouse sparkle particles */}
+      <div className="pointer-events-none fixed inset-0 z-50">
+        {sparkles.map((s) => (
+          <span
+            key={s.id}
+            className="animate-sparkle-trail absolute rounded-full"
+            style={{
+              left: s.x - s.size / 2,
+              top: s.y - s.size / 2,
+              width: s.size,
+              height: s.size,
+              backgroundColor: s.color,
+            }}
+          />
+        ))}
+      </div>
 
       {/* Animated aurora blobs — follow cursor */}
       <div
@@ -74,7 +143,7 @@ export function Hero({ onStart }: HeroProps) {
           </div>
         </div>
 
-        {/* Script font name — the Bethany Elingston showstopper */}
+        {/* Script font name */}
         <h1 className="animate-slide-up mb-2">
           <span className="font-display text-6xl text-datefix-pink sm:text-7xl md:text-8xl">
             Emily
@@ -93,16 +162,13 @@ export function Hero({ onStart }: HeroProps) {
 
         <p className="animate-slide-up mb-10 max-w-md text-base leading-relaxed text-white/50 [animation-delay:300ms] sm:text-lg">
           Your step-by-step guide to GitHub, Claude Code, &amp; everything
-          DateFix. Built with love by Adam.
+          DateFix. Built with love, by Adam.
         </p>
 
-        {/* CTA Button — gradient with glow */}
+        {/* CTA Button */}
         <div className="animate-slide-up [animation-delay:400ms]">
           <Button
-            onClick={() => {
-              playStart();
-              onStart();
-            }}
+            onClick={handleStart}
             size="lg"
             className="animate-glow group h-16 cursor-pointer gap-3 rounded-full bg-gradient-to-r from-datefix-blue via-datefix-pink to-datefix-gold px-12 text-lg font-bold text-white transition-all hover:scale-110"
           >
