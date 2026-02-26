@@ -2,6 +2,7 @@
 
 import { QuizCard } from "@/types";
 import { cn } from "@/lib/utils";
+import { playFlip } from "@/lib/sounds";
 import { Check } from "lucide-react";
 
 const categoryStyles: Record<
@@ -51,7 +52,10 @@ export function Flashcard({ card, flipped, onFlip }: FlashcardProps) {
 
   return (
     <button
-      onClick={onFlip}
+      onClick={() => {
+        playFlip();
+        onFlip();
+      }}
       className="perspective h-52 w-full cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-datefix-blue focus-visible:ring-offset-2"
     >
       <div

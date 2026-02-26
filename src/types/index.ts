@@ -4,6 +4,7 @@ export interface TutorialStep {
   description: string;
   code?: string;
   link?: { url: string; label: string };
+  links?: { url: string; label: string }[];
   icon: string;
 }
 

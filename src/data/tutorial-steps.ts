@@ -69,8 +69,18 @@ export const tutorialSteps: TutorialStep[] = [
     id: 9,
     title: "PSD Files & Google Drive",
     description:
-      "The original Photoshop (.psd) design files for DateFix are stored in Google Drive. These are the source-of-truth designs that the demo was built from. Ask Adam for the Google Drive link if you need to reference or edit the original designs.",
+      "The original Photoshop (.psd) design files for DateFix are stored in Google Drive. These are the source-of-truth designs that the demo was built from. Use the links below to access both folders:",
     icon: "file-image",
+    links: [
+      {
+        url: "https://drive.google.com/drive/folders/1EheaO8m1LEVwBMuhmgYMeFhHjUhMBB8V?usp=sharing",
+        label: "Design Files (Folder 1)",
+      },
+      {
+        url: "https://drive.google.com/drive/folders/1qPPWLOLd6l9PSk5Y2eCl4lX0U7gc-uSJ?usp=sharing",
+        label: "Design Files (Folder 2)",
+      },
+    ],
   },
   {
     id: 10,

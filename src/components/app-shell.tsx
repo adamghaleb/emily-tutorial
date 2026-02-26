@@ -9,6 +9,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { playClick } from "@/lib/sounds";
 import { TutorialTab } from "@/components/tutorial/tutorial-tab";
 import { ChatTab } from "@/components/chat/chat-tab";
 import { QuizTab } from "@/components/quiz/quiz-tab";
@@ -99,7 +100,10 @@ export function AppShell({ onBack }: AppShellProps) {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  playClick();
+                  setActiveTab(tab.id);
+                }}
                 className={cn(
                   "flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-all",
                   activeTab === tab.id

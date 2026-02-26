@@ -5,13 +5,14 @@ import { ChatMessage as ChatMessageType } from "@/types";
 import { ChatMessage, TypingIndicator } from "@/components/chat/chat-message";
 import { ChatInput } from "@/components/chat/chat-input";
 import { getResponse } from "@/lib/chat-engine";
+import { playSend, playReceive } from "@/lib/sounds";
 import { Sparkles } from "lucide-react";
 
 const WELCOME_MESSAGE: ChatMessageType = {
   id: "welcome",
   role: "assistant",
   content:
-    "Hey Emily! 👋 I'm your personal tutorial buddy. Ask me anything about GitHub, Claude Code, the datefix-demo project, or how things work. No question is too basic — I'm here for you!",
+    "Hey Emily! 👋 I'm Job Bot — your personal guide to landing this job GUARANTEED. Ask me anything about GitHub, Claude Code, the datefix-demo project, or how things work. No question is too basic — we're getting you this job!",
 };
 
 export function ChatTab() {
@@ -40,6 +41,7 @@ export function ChatTab() {
 
     setMessages((prev) => [...prev, userMessage]);
     setIsTyping(true);
+    playSend();
 
     const delay = 500 + Math.random() * 300;
     setTimeout(() => {
@@ -51,6 +53,7 @@ export function ChatTab() {
       };
       setMessages((prev) => [...prev, assistantMessage]);
       setIsTyping(false);
+      playReceive();
     }, delay);
   };
 
@@ -66,10 +69,10 @@ export function ChatTab() {
           <Sparkles className="h-4 w-4 text-datefix-pink" />
         </div>
         <h2 className="text-3xl font-extrabold tracking-tight text-foreground">
-          Chat with Adam-bot
+          Job Bot
         </h2>
         <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-          I know all about GitHub, Claude, DateFix, and more.
+          Your personal guide to landing this job. Ask me anything!
         </p>
       </div>
 

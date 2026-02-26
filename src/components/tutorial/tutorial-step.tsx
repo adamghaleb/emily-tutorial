@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { TutorialStep as TutorialStepType } from "@/types";
+import { cn } from "@/lib/utils";
+import { playClick } from "@/lib/sounds";
 import {
   Copy,
   Check,
@@ -16,6 +18,8 @@ import {
   Paintbrush,
   FileImage,
   Rocket,
+  CircleCheck,
+  Circle,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -31,89 +35,110 @@ const iconMap: Record<string, React.ReactNode> = {
   rocket: <Rocket className="h-5 w-5" />,
 };
 
-// Rotating accent colors per step — datefix spice palette
 const stepAccents = [
   {
     bg: "bg-datefix-blue/10",
     text: "text-datefix-blue",
     border: "border-datefix-blue/20",
-    glow: "hover:shadow-datefix-blue/10",
   },
   {
     bg: "bg-datefix-pink/10",
     text: "text-datefix-pink",
     border: "border-datefix-pink/20",
-    glow: "hover:shadow-datefix-pink/10",
   },
   {
     bg: "bg-datefix-gold/10",
     text: "text-datefix-gold",
     border: "border-datefix-gold/20",
-    glow: "hover:shadow-datefix-gold/10",
   },
   {
     bg: "bg-datefix-green/10",
     text: "text-datefix-green",
     border: "border-datefix-green/20",
-    glow: "hover:shadow-datefix-green/10",
   },
   {
     bg: "bg-datefix-blue/10",
     text: "text-datefix-blue",
     border: "border-datefix-blue/20",
-    glow: "hover:shadow-datefix-blue/10",
   },
 ];
 
 interface TutorialStepProps {
   step: TutorialStepType;
+  completed: boolean;
+  onToggle: () => void;
 }
 
-export function TutorialStep({ step }: TutorialStepProps) {
+export function TutorialStep({ step, completed, onToggle }: TutorialStepProps) {
   const [copied, setCopied] = useState(false);
   const accent = stepAccents[(step.id - 1) % stepAccents.length];
 
   const handleCopy = async () => {
     if (!step.code) return;
+    playClick();
     await navigator.clipboard.writeText(step.code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const allLinks = [...(step.link ? [step.link] : []), ...(step.links ?? [])];
+
   return (
     <div
-      className={`hover-lift group relative overflow-hidden rounded-2xl border bg-card p-5 ${accent.border}`}
+      className={cn(
+        "hover-lift group relative overflow-hidden rounded-2xl border bg-card p-5 transition-all",
+        accent.border,
+        completed && "border-datefix-green/30 bg-datefix-green/[0.03]",
+      )}
     >
-      {/* Subtle gradient accent at top */}
+      {/* Top accent */}
       <div
-        className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent ${accent.bg} to-transparent opacity-60`}
+        className={cn(
+          "absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent to-transparent opacity-60",
+          completed ? "bg-datefix-green/30" : accent.bg,
+        )}
       />
 
       <div className="flex items-start gap-4">
-        {/* Step number — fun rounded square */}
+        {/* Step number or check */}
         <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${accent.bg} text-base font-black ${accent.text}`}
+          className={cn(
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-base font-black transition-all",
+            completed
+              ? "bg-datefix-green/15 text-datefix-green"
+              : `${accent.bg} ${accent.text}`,
+          )}
         >
-          {step.id}
+          {completed ? <Check className="h-5 w-5" /> : step.id}
         </div>
 
         <div className="min-w-0 flex-1">
           {/* Title row */}
           <div className="mb-2 flex items-center gap-2.5">
-            <span className={accent.text}>
+            <span className={completed ? "text-datefix-green" : accent.text}>
               {iconMap[step.icon] ?? <Sparkles className="h-5 w-5" />}
             </span>
-            <h3 className="text-base font-bold tracking-tight text-foreground sm:text-lg">
+            <h3
+              className={cn(
+                "text-base font-bold tracking-tight sm:text-lg",
+                completed ? "text-datefix-green" : "text-foreground",
+              )}
+            >
               {step.title}
             </h3>
           </div>
 
           {/* Description */}
-          <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+          <p
+            className={cn(
+              "whitespace-pre-line text-sm leading-relaxed",
+              completed ? "text-muted-foreground/60" : "text-muted-foreground",
+            )}
+          >
             {step.description}
           </p>
 
-          {/* Code snippet — dark terminal with personality */}
+          {/* Code snippet */}
           {step.code && (
             <div className="relative mt-4 overflow-hidden rounded-xl bg-[#1a1530] ring-1 ring-white/5">
               <div className="flex items-center justify-between border-b border-white/5 px-4 py-2">
@@ -151,18 +176,41 @@ export function TutorialStep({ step }: TutorialStepProps) {
             </div>
           )}
 
-          {/* Link — pill style */}
-          {step.link && (
-            <a
-              href={step.link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all ${accent.bg} ${accent.text} hover:scale-[1.02]`}
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              {step.link.label}
-            </a>
+          {/* Links — pill style */}
+          {allLinks.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {allLinks.map((lnk) => (
+                <a
+                  key={lnk.url}
+                  href={lnk.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all hover:scale-[1.02] ${accent.bg} ${accent.text}`}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  {lnk.label}
+                </a>
+              ))}
+            </div>
           )}
+
+          {/* Done checkbox */}
+          <button
+            onClick={onToggle}
+            className={cn(
+              "mt-4 flex cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all",
+              completed
+                ? "bg-datefix-green/15 text-datefix-green"
+                : "bg-accent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {completed ? (
+              <CircleCheck className="h-4 w-4" />
+            ) : (
+              <Circle className="h-4 w-4" />
+            )}
+            {completed ? "Done!" : "Mark as done"}
+          </button>
         </div>
       </div>
     </div>

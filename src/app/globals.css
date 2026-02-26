@@ -264,12 +264,19 @@
 @keyframes confetti-fall {
   0% {
     opacity: 1;
-    transform: translateY(0) rotate(0deg);
+    transform: translateY(0) translateX(0) rotate(0deg);
+  }
+  80% {
+    opacity: 1;
   }
   100% {
     opacity: 0;
-    transform: translateY(120px) rotate(720deg);
+    transform: translateY(100vh) translateX(var(--drift, 0px)) rotate(720deg);
   }
+}
+
+.animate-confetti-fall {
+  animation: confetti-fall 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
 .animate-float {

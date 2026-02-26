@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { quizCards } from "@/data/quiz-cards";
 import { Flashcard } from "@/components/quiz/flashcard";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { playClick, playCelebration } from "@/lib/sounds";
+import { Confetti } from "@/components/confetti";
 import { Shuffle, RotateCcw, Sparkles, Trophy } from "lucide-react";
 
 export function QuizTab() {
@@ -20,6 +22,20 @@ export function QuizTab() {
 
   const progress = Math.round((flippedIds.size / quizCards.length) * 100);
   const allDone = flippedIds.size === quizCards.length;
+  const [showConfetti, setShowConfetti] = useState(false);
+  const prevFlipped = useRef(flippedIds.size);
+
+  useEffect(() => {
+    if (
+      flippedIds.size === quizCards.length &&
+      prevFlipped.current < quizCards.length &&
+      quizCards.length > 0
+    ) {
+      playCelebration();
+      setShowConfetti(true);
+    }
+    prevFlipped.current = flippedIds.size;
+  }, [flippedIds]);
 
   const handleFlip = useCallback((id: number) => {
     setFlippedIds((prev) => {
@@ -34,6 +50,7 @@ export function QuizTab() {
   }, []);
 
   const handleShuffle = () => {
+    playClick();
     setOrder((prev) => {
       const shuffled = [...prev];
       for (let i = shuffled.length - 1; i > 0; i--) {
@@ -45,12 +62,15 @@ export function QuizTab() {
   };
 
   const handleReset = () => {
+    playClick();
     setFlippedIds(new Set());
     setOrder(quizCards.map((c) => c.id));
   };
 
   return (
     <div className="space-y-6">
+      {showConfetti && <Confetti onDone={() => setShowConfetti(false)} />}
+
       {/* Header */}
       <div className="text-center">
         <div className="mb-2 flex items-center justify-center gap-2">

@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { playStart } from "@/lib/sounds";
 import { Sparkles, Heart, Rocket, Star, Zap, PartyPopper } from "lucide-react";
 
 interface HeroProps {
@@ -70,7 +71,10 @@ export function Hero({ onStart }: HeroProps) {
         {/* CTA Button — gradient with glow */}
         <div className="animate-slide-up [animation-delay:400ms]">
           <Button
-            onClick={onStart}
+            onClick={() => {
+              playStart();
+              onStart();
+            }}
             size="lg"
             className="animate-glow group h-16 cursor-pointer gap-3 rounded-full bg-gradient-to-r from-datefix-blue via-datefix-pink to-datefix-gold px-12 text-lg font-bold text-white transition-all hover:scale-110"
           >
