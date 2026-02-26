@@ -3,7 +3,15 @@
 import { useRef, useCallback, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { playStart } from "@/lib/sounds";
-import { Sparkles, Heart, Rocket, Star, Zap, PartyPopper } from "lucide-react";
+import {
+  Sparkles,
+  Heart,
+  Rocket,
+  Star,
+  Zap,
+  PartyPopper,
+  ExternalLink,
+} from "lucide-react";
 
 interface HeroProps {
   onStart: () => void;
@@ -178,8 +186,19 @@ export function Hero({ onStart }: HeroProps) {
           </Button>
         </div>
 
+        {/* Visit demo link */}
+        <a
+          href="https://datefix-demo.vercel.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="animate-slide-up mt-6 inline-flex items-center gap-2 rounded-full border border-white/10 px-5 py-2.5 text-sm font-semibold text-white/60 transition-all hover:border-white/25 hover:text-white [animation-delay:500ms]"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          Visit DateFix Demo
+        </a>
+
         {/* Fun tag */}
-        <p className="animate-slide-up mt-8 text-sm font-medium tracking-widest text-white/30 uppercase [animation-delay:500ms]">
+        <p className="animate-slide-up mt-6 text-sm font-medium tracking-widest text-white/30 uppercase [animation-delay:600ms]">
           10 steps to becoming a pro
         </p>
       </div>

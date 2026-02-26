@@ -142,7 +142,7 @@ export function TutorialStep({
               completed ? "text-muted-foreground/60" : "text-muted-foreground",
             )}
           >
-            {step.description}
+            {linkifyDatefix(step.description)}
           </p>
 
           {/* Code snippet */}
@@ -233,5 +233,30 @@ export function TutorialStep({
         </div>
       </div>
     </div>
+  );
+}
+
+const DEMO_URL = "https://datefix-demo.vercel.app/";
+const DATEFIX_PATTERN = /\b(datefix-demo|DateFix demo|DateFix Demo)\b/g;
+
+/** Auto-link mentions of "datefix-demo" / "DateFix demo" to the live site */
+function linkifyDatefix(text: string): React.ReactNode {
+  const parts = text.split(DATEFIX_PATTERN);
+  if (parts.length === 1) return text;
+
+  return parts.map((part, i) =>
+    DATEFIX_PATTERN.test(part) ? (
+      <a
+        key={i}
+        href={DEMO_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-semibold text-datefix-pink underline decoration-datefix-pink/30 underline-offset-2 transition-colors hover:text-datefix-blue hover:decoration-datefix-blue/50"
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    ),
   );
 }

@@ -9,6 +9,7 @@ import {
   Lightbulb,
   Target,
   Wrench,
+  Globe,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -66,6 +67,27 @@ export function BuildGuide({ onBack }: BuildGuideProps) {
           </p>
         </div>
         <ExternalLink className="h-4 w-4 text-datefix-blue" />
+      </a>
+
+      {/* Visit demo button */}
+      <a
+        href="https://datefix-demo.vercel.app/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-3 rounded-2xl border border-datefix-pink/20 bg-datefix-pink/5 p-4 transition-all hover:bg-datefix-pink/10"
+      >
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-datefix-pink/15">
+          <Globe className="h-5 w-5 text-datefix-pink" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-bold text-foreground">
+            Visit DateFix Demo
+          </p>
+          <p className="text-xs text-muted-foreground">
+            See the live site this guide is about
+          </p>
+        </div>
+        <ExternalLink className="h-4 w-4 text-datefix-pink" />
       </a>
 
       {/* Hero image */}

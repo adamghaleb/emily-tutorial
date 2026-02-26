@@ -65,10 +65,16 @@ export const tutorialSteps: TutorialStep[] = [
       "Fun fact: Adam built the entire datefix-demo by vibe coding! He started with AI-generated product images, extracted assets in Photoshop, then assembled everything into an interactive web experience with Claude Code. He even built custom debug tools to align everything pixel-perfectly.",
     icon: "paintbrush",
     action: { label: "Learn More", actionId: "build-guide" },
-    link: {
-      url: "/build-guide/datefix-build-guide.pdf",
-      label: "Read Full Build Guide PDF",
-    },
+    links: [
+      {
+        url: "/build-guide/datefix-build-guide.pdf",
+        label: "Read Full Build Guide PDF",
+      },
+      {
+        url: "https://datefix-demo.vercel.app/",
+        label: "Visit DateFix Demo",
+      },
+    ],
   },
   {
     id: 9,
